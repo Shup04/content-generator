@@ -1,0 +1,35 @@
+Animate the supplied first frame as a continuous in-engine shot from the
+fictional 2004 console game [GAME_TITLE].
+
+Keep the original environment, colour palette, lighting, and all architectural
+features consistent with the first frame. Keep the main environmental features
+in view while allowing the gentle viewpoint changes described below.
+Preserve low-poly geometry, blurry low-resolution textures, visible texture
+tiling, baked lightmaps, simple fake reflections, and old-console softness.
+Do not turn the scene into photography or modern CGI.
+
+Keep the first frame's luminous emotional focal point readable throughout.
+Let the shot feel like slowly revisiting a half-remembered childhood game:
+quiet, dreamlike, inviting, and a little uncanny. Preserve its soft bloom,
+glow halos, and deliberately exaggerated light without flicker or dramatic
+exposure changes. Animate the existing atmospheric effects as simple old-game
+tricks: scrolling caustic textures, drifting translucent fog planes, and a few
+slow billboard particles. Avoid realistic volumetric fog, fluid simulation,
+or modern cinematic lighting. Keep the effects sparse and gentle.
+
+Mood:
+[MOOD]
+
+Camera motion:
+[CAMERA_MOTION]
+
+Environmental motion:
+[ENVIRONMENT_MOTION]
+
+Audio:
+[AUDIO]
+
+Keep motion subtle and coherent with the supplied frame. Use one uninterrupted
+shot with no cuts, transitions, added characters, new props, or architectural
+changes. Preserve existing environmental signage without adding titles,
+subtitles, logos, or HUD. Keep the original portrait framing throughout the clip.

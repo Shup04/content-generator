@@ -1,0 +1,25 @@
+Animate the supplied first frame as a continuous in-engine shot from the
+fictional 2004 console game [GAME_TITLE].
+
+Keep the original environment, composition, colour palette, lighting, and
+all architectural features consistent with the first frame.
+Preserve low-poly geometry, blurry low-resolution textures, visible texture
+tiling, baked lightmaps, simple fake reflections, and old-console softness.
+Do not turn the scene into photography or modern CGI.
+
+Mood:
+[MOOD]
+
+Camera motion:
+[CAMERA_MOTION]
+
+Environmental motion:
+[ENVIRONMENT_MOTION]
+
+Audio:
+[AUDIO]
+
+Keep motion subtle and coherent with the supplied frame. Use one uninterrupted
+shot with no cuts, transitions, added characters, or new objects. Preserve
+existing environmental signage without adding titles, subtitles, logos, or HUD.
+Keep the original portrait framing throughout the clip.

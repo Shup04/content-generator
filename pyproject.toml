@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "save-reel"
+version = "0.1.0"
+description = "Structured concepts and deterministic prompts for Choose Your Save reels"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = ["pydantic>=2.12,<3"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8,<10", "ruff>=0.11,<1"]
+media = ["openai>=2.53,<3", "httpx>=0.28,<1", "python-dotenv>=1,<2", "pillow>=11,<13"]
+
+[project.scripts]
+save-reel = "save_reel.cli:main"
+
+[tool.setuptools]
+packages = ["save_reel", "save_reel.providers", "save_reel.prompt_templates"]
+package-dir = {"" = "src", "save_reel.prompt_templates" = "prompts"}
+include-package-data = false
+
+[tool.setuptools.package-data]
+"save_reel.prompt_templates" = ["environment/*.txt", "label/*.txt", "broll_still/*.txt", "broll_video/*.txt"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]

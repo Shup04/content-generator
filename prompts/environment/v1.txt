@@ -1,0 +1,22 @@
+Create an evocative environment image for a Choose Your Save reel.
+Use a vertical 9:16 composition with one clear focal point and a readable silhouette.
+
+Reel theme: ${theme}
+World title: ${title}
+World premise: ${summary}
+Biome: ${biome}
+Setting: ${setting}
+Focal point: ${focal_point}
+Time of day: ${time_of_day}
+Weather: ${weather}
+Lighting: ${lighting}
+Color palette: ${palette}
+Mood: ${mood}
+Environmental details: ${details}
+Ambient particles: ${ambient_particles}
+Atmospheric effects: ${atmospheric_effects}
+Suggested environmental motion: ${motion_cues}
+
+Use cinematic depth, coherent materials, and a strong sense of place.
+Keep the main subject within the central safe area for a mobile screen.
+Show the environment only. Exclude text, logos, watermarks, UI, and game cartridges.

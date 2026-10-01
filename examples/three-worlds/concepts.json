@@ -1,0 +1,37 @@
+{
+  "description": "Three contrasting fictional save choices to accompany DEEP END. Story notes guide future labels or narration; only the separate structured scene and motion files populate the existing B-roll templates.",
+  "still_template_version": "v2",
+  "video_template_version": "v2",
+  "games": [
+    {
+      "title": "SUNROOM LINE",
+      "choice": "Looks good and is good",
+      "premise": "A tram stop above the clouds where the last afternoon of summer never quite ends.",
+      "story_direction": "The tram takes you to a place where you felt safe. You can rest as long as you need, and leave when you are ready. This choice has no hidden punishment.",
+      "visual_clue": "The open amber-lit tram door, well-kept platform, flowers, and small HOME destination board.",
+      "values_file": "sunroom-line.json",
+      "motion_file": "sunroom-line-motion.json",
+      "run_id": "sunroom-line-broll-v1"
+    },
+    {
+      "title": "VELVET ORCHARD",
+      "choice": "Looks good but is bad",
+      "premise": "An impossibly beautiful peach orchard growing inside a deserted pastel shopping mall.",
+      "story_direction": "Each peach lets you relive a perfect memory, but the orchard keeps that memory afterward. Visitors eventually forget why they wanted to leave. The fruit's warmth is a lure.",
+      "visual_clue": "Pale roots quietly hold abandoned suitcases beneath the glowing fruit.",
+      "values_file": "velvet-orchard.json",
+      "motion_file": "velvet-orchard-motion.json",
+      "run_id": "velvet-orchard-broll-v1"
+    },
+    {
+      "title": "SIGNAL 03",
+      "choice": "Cannot tell whether it is good or bad",
+      "premise": "An error cartridge opens a lift in an unfinished lavender field, with a sunlit school corridor on the other side.",
+      "story_direction": "It may be restoring a lost save or inventing a world from someone else's memories. Keep the outcome unresolved; the doorway offers no reliable instructions.",
+      "visual_clue": "The corridor cannot fit behind the freestanding frame; a few rectangular ground patches have no texture.",
+      "values_file": "signal-03.json",
+      "motion_file": "signal-03-motion.json",
+      "run_id": "signal-03-broll-v1"
+    }
+  ]
+}

@@ -1,0 +1,103 @@
+Create the flat front-label artwork for a fictional video game/save
+called “[GAME_TITLE]”.
+
+The artwork should look like it was designed for a strange
+2002–2005 video game advertisement or cartridge label.
+
+OUTPUT FORMAT
+
+Create a landscape 3:2 image.
+
+The entire image must be the label artwork itself, extending
+all the way to the image edges.
+
+Do not show a cartridge, cartridge shell, game box, physical
+sticker, product mockup, surrounding background, or studio scene.
+
+Do not give the label thickness, bevelled edges, curled corners,
+surface glare, or a cast shadow.
+
+The label canvas must be flat and rectangular, with no tilt or
+perspective distortion. Perspective is allowed inside the
+illustrated game environment, but not on the label itself.
+
+Do not draw rounded outer corners. The physical cartridge model
+will provide the label’s final outline.
+
+TITLE
+
+Prominently display this exact title:
+
+[GAME_TITLE]
+
+Keep the title large, simple, and readable with an original,
+slightly futuristic early-2000s game-logo treatment.
+
+Give the lettering a treatment that suits this particular
+fictional world, while keeping the words easy to read.
+
+Integrate the title into the composition without covering
+the environment’s most important visual feature.
+
+Keep the title and essential imagery away from the outer edges
+so they survive slight cropping when applied to a cartridge.
+
+Do not add publisher logos, ratings, slogans, tiny text,
+legal copy, barcodes, or excessive graphic clutter.
+
+Apart from the game title, only include text explicitly described
+as signage within the game environment.
+
+LABEL SCENE
+
+The label depicts:
+
+[WORLD_SCENE]
+
+Arrange this environment into one strong, readable composition,
+not a collage of unrelated scenes.
+
+The environment should feel like a memorable location from a
+forgotten console game, with distinctive details that suggest
+a larger world beyond the image.
+
+VISUAL STYLE
+
+Use a deliberately early-2000s CG aesthetic:
+
+- simple 3D geometry
+- moderately low polygon detail
+- simplified materials
+- slightly soft textures
+- modest texture resolution
+- baked-looking lighting
+- simple reflections rather than physically accurate reflections
+- soft bloom
+- mild atmospheric haze
+- slightly oversaturated period colour grading
+- no modern microscopic material detail
+- faint early-digital softness
+- slightly imperfect rendering
+
+The scene should resemble an environment from a sixth-generation
+console game, composed for its promotional artwork.
+
+It must not look like modern concept art, architectural
+visualization, photography, or current-generation CGI.
+
+Colour palette:
+[COLOUR_PALETTE]
+
+Mood:
+[MOOD]
+
+Keep the image visually simple and immediately readable,
+including when viewed as a small cartridge label.
+
+The result should feel like someone discovered the label artwork
+for a lost game from 2003 that never actually existed.
+
+Avoid photorealism, physically accurate modern materials,
+razor-sharp details, modern cinematic lighting, hyper-detailed
+AI fantasy imagery, realistic depth-of-field photography,
+real-world logos, and existing game branding.

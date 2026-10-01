@@ -1,0 +1,5 @@
+{
+  "CAMERA_MOTION": "Take one very slow exploratory step forward along the platform toward the open tram door. Add a tiny wandering sideways drift and barely perceptible walking sway. Keep generally facing the same doorway and tram throughout, with slight foreground parallax from the fence post and flowers. Stay safely on the platform. No rotating pan, orbit, zoom, cuts, pronounced head bob, or visible person.",
+  "ENVIRONMENT_MOTION": "The tram remains parked and its door remains open, with steady warm amber light and a soft glow halo. Grass and sunflowers sway by a tiny amount using simple repeated old-game animation. The single paper pinwheel turns lazily. A few golden billboard dust particles drift through the doorway's light, while the distant flat cloud layers slide almost imperceptibly. Keep all motion slow and comforting. Preserve the simple textures, fake bloom, and fixed sunset; do not introduce realistic clouds, moving shadows, water, extra vehicles, or people.",
+  "AUDIO": "Silence. No generated music, speech, ambience, or sound effects."
+}

@@ -1,0 +1,5 @@
+{
+  "CAMERA_MOTION": "Take one very slow exploratory step forward along the checker-tiled path, with a tiny uncertain sideways drift and barely perceptible walking sway. Keep generally facing the same open lift and remain outside it for the entire clip. Use only small foreground parallax; do not circle the freestanding frame or reveal a new side of the impossible corridor. No rotating pan, zoom, cut, pronounced head bob, or visible person.",
+  "ENVIRONMENT_MOTION": "The open lift, its doors, the sunny corridor, and the 03 display stay completely stable. A few existing square billboard particles drift slowly upward near the frame. Thin horizontal translucent fog planes slide gently across the distant lavender field, while the grass barely stirs in a simple repeating animation. Keep the moon and the clean rectangular unfinished ground patches fixed. Preserve the soft glow of the doorway without strobing, exposure shifts, screen tearing, new missing geometry, or full-frame glitches. Do not reveal what is beyond the corridor or resolve whether the place is safe.",
+  "AUDIO": "Silence. No generated music, speech, ambience, or sound effects."
+}

@@ -1,0 +1,67 @@
+In-engine screenshot from a fictional 2004 PS2 game called
+[GAME_TITLE].
+
+Show this environment:
+
+[WORLD_SCENE]
+
+Shot composition:
+
+[SHOT_COMPOSITION]
+
+Use vertical 9:16 framing, as though this is a portrait crop
+of the game view. Keep the main environmental features readable
+within that composition.
+
+Make it look like a real sixth-generation console game screenshot,
+not modern CGI and not photorealistic rendering.
+
+Use:
+
+- low-poly environment geometry
+- 128x128 and 256x256 diffuse textures
+- visible texture tiling
+- slightly blurry bilinear texture filtering
+- soft low-resolution texture detail
+- baked lightmaps
+- simple static lighting
+- basic specular highlights
+- simple, fake-looking reflections
+- light distance fog
+- 480p screenshot softness
+- slight compression softness
+
+The lighting should feel like an older game engine:
+flatter, simpler, and less physically accurate.
+
+The following surfaces should clearly look like low-resolution
+game textures, not modern clean materials:
+
+[KEY_SURFACES]
+
+If water is visible, use fake water reflections and a simple
+water shader. The water should look stylized and game-like,
+not realistic.
+
+Colour palette:
+
+[COLOUR_PALETTE]
+
+Mood:
+
+[MOOD]
+
+Preserve the deliberately simple geometry and low-resolution
+surface detail even in the foreground.
+
+Do not add a HUD, menus, subtitles, decorative borders,
+watermarks, or the game title over the image.
+
+Text explicitly described as signage within the game world
+is allowed.
+
+Do not make it photorealistic.
+
+Do not use ray tracing, PBR materials, cinematic lighting,
+realistic architectural visualization, modern high-detail
+reflections, or photographic depth of field.
