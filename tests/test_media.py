@@ -14,7 +14,7 @@ pytest.importorskip("dotenv")
 
 from save_reel.broll import BrollPipeline
 from save_reel.cli import main
-from save_reel.media_models import BrollSettings, BrollValues, MotionValues
+from save_reel.media_models import BrollSettings, BrollValues, ImageSettings, MotionValues
 from save_reel.models import StageStatus
 from save_reel.providers.media import GeneratedImage, MediaError, VideoTask
 from save_reel.providers.minimax_video import MiniMaxVideoProvider
@@ -38,8 +38,20 @@ def media_input():
     )
 
 
-def test_openai_request_and_png_validation(png):
+@pytest.mark.parametrize(
+    "settings", [BrollSettings(), ImageSettings(), ImageSettings(image_background="transparent")]
+)
+def test_openai_request_and_png_validation(settings):
     requests = []
+    stream = BytesIO()
+    size = tuple(int(edge) for edge in settings.image_size.split("x"))
+    if settings.image_background == "transparent":
+        source = Image.new("RGBA", size, (0, 0, 0, 0))
+        source.paste((0, 200, 200, 255), (100, 100, size[0] - 100, size[1] - 100))
+    else:
+        source = Image.new("RGB", size, "turquoise")
+    source.save(stream, format="PNG")
+    png = stream.getvalue()
 
     def handler(request):
         requests.append(request)
@@ -52,7 +64,7 @@ def test_openai_request_and_png_validation(png):
     with openai.OpenAI(
         api_key="test-openai-key", http_client=httpx.Client(transport=httpx.MockTransport(handler))
     ) as client:
-        image = OpenAIImageProvider(client).generate("An old game screenshot", BrollSettings())
+        image = OpenAIImageProvider(client).generate("An old game screenshot", settings)
     assert image.content == png
     assert image.request_id == "req_test"
     assert len(requests) == 1
@@ -60,12 +72,40 @@ def test_openai_request_and_png_validation(png):
     assert json.loads(requests[0].content) == {
         "model": "gpt-image-2.5-sunburst",
         "prompt": "An old game screenshot",
-        "size": "864x1536",
+        "size": settings.image_size,
         "quality": "medium",
         "output_format": "png",
-        "background": "opaque",
+        "background": settings.image_background,
         "n": 1,
     }
+
+
+@pytest.mark.parametrize("mode,alpha", [("RGB", 255), ("RGBA", 255), ("RGBA", 0)])
+def test_openai_rejects_fake_transparency_and_empty_cutouts(mode, alpha):
+    stream = BytesIO()
+    Image.new(mode, (1536, 1024), (100, 150, 200, alpha)[:len(mode)]).save(stream, format="PNG")
+    encoded = base64.b64encode(stream.getvalue()).decode()
+    transport = httpx.MockTransport(lambda request: httpx.Response(
+        200, json={"created": 1, "data": [{"b64_json": encoded}]}
+    ))
+    with openai.OpenAI(
+        api_key="test-key", http_client=httpx.Client(transport=transport)
+    ) as client:
+        with pytest.raises(MediaError, match="transparent background"):
+            OpenAIImageProvider(client).generate(
+                "A transparent cutout", ImageSettings(image_background="transparent")
+            )
+
+
+def test_openai_rejects_dimensions_that_do_not_match_requested_size(png):
+    transport = httpx.MockTransport(lambda request: httpx.Response(
+        200, json={"created": 1, "data": [{"b64_json": base64.b64encode(png).decode()}]}
+    ))
+    with openai.OpenAI(
+        api_key="test-key", http_client=httpx.Client(transport=transport)
+    ) as client:
+        with pytest.raises(MediaError, match="dimensions"):
+            OpenAIImageProvider(client).generate("A cartridge", ImageSettings())
 
 
 def test_openai_does_not_retry_or_expose_raw_error():

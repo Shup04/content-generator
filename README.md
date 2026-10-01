@@ -5,14 +5,15 @@ creates one reel with exactly four save games, prepares four label prompts and
 four B-roll still prompts, and saves a JSON manifest. The mock workflow runs locally
 without API keys or network access.
 
-An optional real B-roll workflow generates a GPT Image 2.5 still and animates it
-with MiniMax H3. Label image generation, Blender, FFmpeg, and social publishing
-are not implemented.
+Optional real workflows generate full cartridge renders with GPT Image 2.5,
+or generate B-roll stills and animate them with MiniMax H3. Separate flat label
+image generation, Blender, FFmpeg, and social publishing are not implemented.
 
 ## How the prompts fit your video
 
 Each fictional game has one shared title, world description, colour palette, and
-mood. Those values fill two different templates:
+mood. Those values fill the label and B-roll templates; cartridge renders add
+structured shell design values:
 
 1. **Cartridge label:** `prompts/label/v1.txt` describes flat 3:2 artwork with the
    game title. Later, an image provider will generate the artwork, which can be
@@ -21,9 +22,14 @@ mood. Those values fill two different templates:
    from that same world. It also specifies shot composition and key surfaces.
    The `generate-broll` command generates this still and sends it to MiniMax H3
    as the first frame of a video.
+3. **Full cartridge render:** `prompts/cartridge/v2.txt` renders an isolated shell
+   with a mysterious teaser label on transparency. `generate-cartridge` produces
+   this image from explicit shell material, shape, molded details, mood, and a hint.
 
 Four games therefore need **four label images and four B-roll still images**.
-The eventual video combines the Blender cartridge animation with four B-roll
+The cartridge render workflow currently creates four concept images paired with
+one existing B-roll clip per story. A second clip per story can be added later.
+The eventual video combines the Blender cartridge animation with the B-roll
 clips. The `create` command prepares the eight text prompts; it does not generate
 images or clips. The original supplied wording remains in the `v1` templates.
 The revised B-roll templates use `v2`; all versions use `[VARIABLE]` placeholders.
@@ -41,6 +47,66 @@ python -m pip install -e '.[dev]'
 For a regular installation without development tools, use `python -m pip install .`.
 Pydantic v2 is the only dependency for the mock workflow. Installation may download dependencies;
 running the mock workflow does not.
+
+## Generate cartridge renders
+
+Install the optional dependencies with `python -m pip install -e '.[media]'`
+and set `OPENAI_API_KEY` in your environment or local `.env`. MiniMax is not used
+by these commands.
+
+```sh
+save-reel generate-cartridge \
+  --values examples/cartridges/v2/deep-end.json \
+  --run-id deep-end-cartridge-v2
+```
+
+This makes one paid image request. Defaults are `gpt-image-2.5-sunburst`, medium
+quality, template `v2`, and a 1536×1024 PNG with a transparent background.
+The API receives `background="transparent"`; the adapter verifies that the PNG
+contains both fully transparent pixels and visible content. Transparency is not
+left to prompt wording alone. B-roll images continue to use opaque backgrounds.
+Use `--image-quality high` or `--image-model gpt-image-2.5-flare` to change image settings.
+Use a fresh run ID for a new generation. `--env-file` selects a different local
+environment file.
+
+The current four designs are in `examples/cartridges/v2/`: DEEP END (a pool ladder
+glimpse), SUNROOM LINE (a sunlit ticket), VELVET ORCHARD (one glowing peach), and
+SIGNAL 03 (a slit of light and disconnected square marks). Their labels hint at
+the story while leaving the full settings and outcomes for the B-roll reveal.
+The values use `HINT_SCENE_DESCRIPTION`, with no studio-background instructions.
+That directory's `collection.json` maps each values file and cartridge run to its existing B-roll
+run. Its `broll_run_ids` lists can include additional clips later. Generating a
+cartridge does not generate or modify any B-roll.
+
+```text
+runs/<run_id>/
+  cartridge.json
+  cartridge_prompt.txt
+  cartridge.png
+  run.log
+```
+
+`cartridge.json` records structured values, the compiled prompt and template
+checksum, image settings, stage status, request ID, usage, and artifact checksums.
+The updated supplied wording is preserved in `prompts/cartridge/v2.txt`.
+These are PNG cutouts of complete cartridges for later compositing, not Blender
+meshes or flat label textures. FFmpeg compositing is not implemented yet.
+
+The original full-scene template and values remain available. To use them, select
+`--template-version v1 --background opaque` with a values file directly under
+`examples/cartridges/`, such as `examples/cartridges/deep-end.json`. Version 1 uses
+`LABEL_SCENE_DESCRIPTION`; version 2 requires `HINT_SCENE_DESCRIPTION` and a
+transparent background. The two scene fields are mutually exclusive. Old saved
+runs without a background setting retain their original opaque interpretation.
+
+```sh
+save-reel resume-cartridge runs/deep-end-cartridge-v2
+```
+
+Resume reuses and verifies a saved image. A request that failed without a saved
+image is not automatically repeated because its billing outcome may be unknown.
+A `.cartridge.lock` directory prevents simultaneous execution of one run. If a
+process is killed, confirm it has stopped before removing that lock.
 
 ## Generate the real DEEP END B-roll
 
@@ -230,6 +296,8 @@ additional game concepts or cartridge properties are invented for the preview.
 prompts/
   __init__.py
   label/v1.txt
+  cartridge/v1.txt  # Full cartridge render with structured shell design values
+  cartridge/v2.txt  # Transparent cartridge cutout with a teaser label
   broll_still/v1.txt
   broll_still/v2.txt  # Dreamlike nostalgia and deliberate old-game effects
   broll_video/v1.txt
@@ -248,7 +316,9 @@ src/save_reel/
   stages.py        # ReelStage protocol and prompt compilation stages
   pipeline.py      # Provider validation, ordered stage execution, checkpoints
   broll.py         # Single-game real generation and resume checkpoints
-  media_models.py  # B-roll inputs, settings, and state
+  cartridge.py     # Cartridge generation and resume checkpoints
+  media_models.py  # B-roll/cartridge inputs, shared image settings, and state
+  cartridge_cli.py # Image-only cartridge command setup
   media_cli.py     # Optional SDK setup and environment credentials
   cli.py           # Argument parsing and dependency assembly
   __main__.py      # python -m save_reel

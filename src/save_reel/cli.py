@@ -78,6 +78,31 @@ def build_parser() -> argparse.ArgumentParser:
             default=900,
             help="Seconds to wait for video before saving and exiting",
         )
+    cartridge = commands.add_parser(
+        "generate-cartridge", help="Generate one cartridge image (paid OpenAI API)"
+    )
+    cartridge.add_argument("--values", type=Path, required=True, help="Cartridge values in JSON")
+    cartridge.add_argument("--runs-dir", type=Path, default=Path("runs"))
+    cartridge.add_argument("--run-id")
+    cartridge.add_argument("--template-version", default="v2")
+    cartridge.add_argument(
+        "--background", choices=("transparent", "opaque"), default="transparent",
+        help="Image background; cartridge/v2 requires transparent",
+    )
+    cartridge.add_argument(
+        "--image-model",
+        choices=("gpt-image-2.5-sunburst", "gpt-image-2.5-flare"),
+        default="gpt-image-2.5-sunburst",
+    )
+    cartridge.add_argument(
+        "--image-quality", choices=("low", "medium", "high", "xhigh", "max"), default="medium"
+    )
+    resume_cartridge = commands.add_parser(
+        "resume-cartridge", help="Continue a saved cartridge run without regenerating its image"
+    )
+    resume_cartridge.add_argument("run_dir", type=Path)
+    for command in (cartridge, resume_cartridge):
+        command.add_argument("--env-file", type=Path, default=Path(".env"))
     return parser
 
 
@@ -87,6 +112,15 @@ def main(argv: Sequence[str] | None = None) -> int:
     # Provider libraries may otherwise log signed download URLs at INFO.
     logging.getLogger("httpx").setLevel(logging.WARNING)
     try:
+        if args.command in {"generate-cartridge", "resume-cartridge"}:
+            try:
+                from save_reel.cartridge_cli import run_cartridge_command
+            except ImportError:
+                raise MediaError(
+                    "Install media dependencies with: python -m pip install -e '.[media]'"
+                ) from None
+            print(run_cartridge_command(args))
+            return 0
         if args.command in {"generate-broll", "resume-broll"}:
             try:
                 from save_reel.media_cli import run_media_command

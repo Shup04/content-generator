@@ -1,0 +1,30 @@
+{
+  "description": "Four matching cartridge designs and their existing B-roll. Each story has one clip for now; additional clips can be linked later without regenerating these assets.",
+  "template_version": "v1",
+  "games": [
+    {
+      "title": "DEEP END",
+      "values_file": "deep-end.json",
+      "cartridge_run_id": "deep-end-cartridge-v1",
+      "broll_run_ids": ["deep-end-broll-v2"]
+    },
+    {
+      "title": "SUNROOM LINE",
+      "values_file": "sunroom-line.json",
+      "cartridge_run_id": "sunroom-line-cartridge-v1",
+      "broll_run_ids": ["sunroom-line-broll-v1"]
+    },
+    {
+      "title": "VELVET ORCHARD",
+      "values_file": "velvet-orchard.json",
+      "cartridge_run_id": "velvet-orchard-cartridge-v1",
+      "broll_run_ids": ["velvet-orchard-broll-v1"]
+    },
+    {
+      "title": "SIGNAL 03",
+      "values_file": "signal-03.json",
+      "cartridge_run_id": "signal-03-cartridge-v1",
+      "broll_run_ids": ["signal-03-broll-v1"]
+    }
+  ]
+}

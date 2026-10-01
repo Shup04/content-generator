@@ -1,9 +1,9 @@
-"""State for one real B-roll branch, separate from a four-save Reel."""
+"""State for real B-roll and cartridge branches, separate from a four-save Reel."""
 
 from datetime import datetime
 from typing import Annotated, Any, Literal
 
-from pydantic import ConfigDict, Field
+from pydantic import ConfigDict, Field, model_validator
 
 from save_reel.models import (
     Artifact,
@@ -36,10 +36,17 @@ class MotionValues(Model):
     audio: Text = Field(alias="AUDIO")
 
 
-class BrollSettings(Model):
+class ImageSettings(Model):
     image_model: Literal["gpt-image-2.5-sunburst", "gpt-image-2.5-flare"] = "gpt-image-2.5-sunburst"
-    image_size: Literal["864x1536"] = "864x1536"
+    image_size: Literal["1536x1024", "864x1536"] = "1536x1024"
     image_quality: Literal["low", "medium", "high", "xhigh", "max"] = "medium"
+    # Omitted in older saved runs, which were generated with opaque backgrounds.
+    image_background: Literal["opaque", "transparent"] = "opaque"
+
+
+class BrollSettings(ImageSettings):
+    image_size: Literal["864x1536"] = "864x1536"
+    image_background: Literal["opaque"] = "opaque"
     video_model: Literal["MiniMax-H3"] = "MiniMax-H3"
     duration: Annotated[int, Field(ge=4, le=15)] = 5
     resolution: Literal["768P", "2K"] = "768P"
@@ -68,3 +75,39 @@ class BrollRun(Model):
     # Persisted before each paid POST. An ambiguous request is never retried automatically.
     image_attempted: bool = False
     video_attempted: bool = False
+
+
+class CartridgeValues(Model):
+    model_config = ConfigDict(validate_by_name=True)
+
+    title: Text = Field(alias="TITLE")
+    shell_material_color: Text = Field(alias="SHELL_MATERIAL_COLOR")
+    shape_language: Text = Field(alias="SHAPE_LANGUAGE")
+    molded_details: Text = Field(alias="MOTIFS_GROOVES_SURFACE_DETAILS")
+    object_mood: Text = Field(alias="OBJECT_MOOD")
+    label_scene_description: Text | None = Field(default=None, alias="LABEL_SCENE_DESCRIPTION")
+    hint_scene_description: Text | None = Field(default=None, alias="HINT_SCENE_DESCRIPTION")
+
+    @model_validator(mode="after")
+    def require_one_scene_description(self) -> "CartridgeValues":
+        if (self.label_scene_description is None) == (self.hint_scene_description is None):
+            raise ValueError(
+                "Provide exactly one of LABEL_SCENE_DESCRIPTION or HINT_SCENE_DESCRIPTION"
+            )
+        return self
+
+
+class CartridgeRun(Model):
+    schema_version: Literal["1.0"] = "1.0"
+    kind: Literal["cartridge_generation"] = "cartridge_generation"
+    run_id: RunId
+    created_at: datetime = Field(default_factory=utc_now)
+    values: CartridgeValues
+    settings: ImageSettings
+    prompt: CompiledPrompt
+    status: StageStatus = StageStatus.PENDING
+    stage: StageState = Field(default_factory=StageState)
+    artifacts: dict[str, Artifact] = Field(default_factory=dict)
+    image_request_id: str | None = None
+    image_usage: dict[str, Any] = Field(default_factory=dict)
+    image_attempted: bool = False

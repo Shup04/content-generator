@@ -3,7 +3,7 @@
 from dataclasses import dataclass, field
 from typing import Any, Literal, Protocol
 
-from save_reel.media_models import BrollSettings
+from save_reel.media_models import BrollSettings, ImageSettings
 
 
 class MediaError(RuntimeError):
@@ -25,7 +25,7 @@ class VideoTask:
 
 
 class ImageProvider(Protocol):
-    def generate(self, prompt: str, settings: BrollSettings) -> GeneratedImage: ...
+    def generate(self, prompt: str, settings: ImageSettings) -> GeneratedImage: ...
 
 
 class VideoProvider(Protocol):

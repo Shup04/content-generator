@@ -23,7 +23,7 @@ package-dir = {"" = "src", "save_reel.prompt_templates" = "prompts"}
 include-package-data = false
 
 [tool.setuptools.package-data]
-"save_reel.prompt_templates" = ["environment/*.txt", "label/*.txt", "broll_still/*.txt", "broll_video/*.txt"]
+"save_reel.prompt_templates" = ["environment/*.txt", "label/*.txt", "broll_still/*.txt", "broll_video/*.txt", "cartridge/*.txt"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

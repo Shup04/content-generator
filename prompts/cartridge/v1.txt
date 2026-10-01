@@ -1,0 +1,42 @@
+Create a stylized early-2000s 3D render of a fictional video game cartridge for a game/save called “[TITLE]”.
+
+The cartridge should be inspired by late-1990s / early-2000s cartridge-era consoles, but it must be fully original and unbranded.
+
+Render a single cartridge as the main subject in a clean three-quarter front view against a simple pale background or soft studio gradient.
+
+The entire cartridge should feel stylized, not like a realistic photographed modern product. It should look like a promotional render for a strange lost game from 2002–2005.
+
+Cartridge design:
+- chunky retro cartridge proportions
+- translucent or tinted plastic shell
+- readable front label area
+- molded plastic details
+- shell design should reflect the world of the game
+
+Shell details:
+- shell material/color: [SHELL_MATERIAL_COLOR]
+- shape language: [SHAPE_LANGUAGE]
+- molded details: [MOTIFS_GROOVES_SURFACE_DETAILS]
+- object mood: [OBJECT_MOOD]
+
+The front label should prominently display:
+[TITLE]
+
+The label artwork should depict:
+[LABEL_SCENE_DESCRIPTION]
+
+The label should feel like art from a sixth-generation console game:
+- low-poly or modest polygon detail
+- slightly soft early-2000s CG rendering
+- simple materials
+- slightly stylized lighting
+- nostalgic and slightly surreal atmosphere
+- strong color identity
+
+Keep the title large, simple, and readable.
+Do not add rating icons, publisher logos, legal copy, or cluttered tiny text.
+Do not use real-world branding.
+Do not make it photorealistic.
+Do not make it look like a modern luxury product shot.
+
+The result should feel like a lost early-2000s game cartridge from a memorable fictional world.

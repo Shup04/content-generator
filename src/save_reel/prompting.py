@@ -130,3 +130,15 @@ class BrollVideoPromptCompiler(PromptCompiler):
         self, request: ConceptRequest, save: SaveGameConcept
     ) -> dict[str, str | tuple[str, ...]]:
         raise PromptTemplateError("video prompts require explicit motion variables; use render()")
+
+
+class CartridgePromptCompiler(PromptCompiler):
+    template_name = "cartridge"
+    bracket_placeholders = True
+
+    def _variables(
+        self, request: ConceptRequest, save: SaveGameConcept
+    ) -> dict[str, str | tuple[str, ...]]:
+        raise PromptTemplateError(
+            "cartridge prompts require explicit shell variables; use render()"
+        )

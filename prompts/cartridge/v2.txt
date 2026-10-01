@@ -1,0 +1,48 @@
+Create a stylized early-2000s 3D render of a fictional video game cartridge for a game/save called “[TITLE]”.
+
+The cartridge should be inspired by late-1990s / early-2000s cartridge-era consoles, but it must be fully original and unbranded.
+
+Render a single cartridge as the main subject, isolated and centered, with a **transparent background**. The output should look like a clean cutout PNG asset that can be composited into another scene later.
+
+Do not place the cartridge on a floor or tabletop. Do not include a room or studio background. Avoid heavy cast shadows. If any shadow is present, keep it extremely subtle and detachable.
+
+The cartridge should feel stylized, like a promotional render for a strange lost game from 2002–2005.
+
+Cartridge design:
+- chunky retro cartridge proportions
+- translucent or tinted plastic shell
+- molded plastic details
+- readable front label area
+- shell design should reflect the mood of the game world
+
+Shell details:
+- shell material/color: [SHELL_MATERIAL_COLOR]
+- shape language: [SHAPE_LANGUAGE]
+- molded details: [MOTIFS_GROOVES_SURFACE_DETAILS]
+- object mood: [OBJECT_MOOD]
+
+The front label should prominently display:
+[TITLE]
+
+Important: the label should **not fully reveal the game world**. It should create curiosity.
+
+The label artwork should show:
+[HINT_SCENE_DESCRIPTION]
+
+The label should act like a mysterious teaser image, not a full scene explanation. Show only a suggestive glimpse, symbolic object, cropped environment fragment, or visually intriguing clue from the game world.
+
+The label should feel like art from a sixth-generation console game:
+- slightly stylized early-2000s CG rendering
+- simple materials
+- strong color identity
+- nostalgic and slightly surreal mood
+- readable composition
+- limited detail
+
+Keep the title large, simple, and readable.
+Do not add rating icons, publisher logos, legal copy, or cluttered tiny text.
+Do not use real-world branding.
+Do not make it photorealistic.
+Do not make it look like a modern product advertisement.
+
+The result should feel like a lost early-2000s game cartridge that hints at a memorable fictional world without giving away the full surprise.
