@@ -6,8 +6,10 @@ four B-roll still prompts, and saves a JSON manifest. The mock workflow runs loc
 without API keys or network access.
 
 Optional real workflows generate full cartridge renders with GPT Image 2.5,
-or generate B-roll stills and animate them with MiniMax H3. Separate flat label
-image generation, Blender, FFmpeg, and social publishing are not implemented.
+or generate B-roll stills and animate them with MiniMax H3. The local `render`
+command combines saved cartridges and B-roll into a finished vertical MP4 with
+FFmpeg. Separate flat label image generation, Blender, narration, and social
+publishing are not implemented.
 
 ## How the prompts fit your video
 
@@ -26,12 +28,12 @@ structured shell design values:
    with a mysterious teaser label on transparency. `generate-cartridge` produces
    this image from explicit shell material, shape, molded details, mood, and a hint.
 
-Four games therefore need **four label images and four B-roll still images**.
-The cartridge render workflow currently creates four concept images paired with
-one existing B-roll clip per story. A second clip per story can be added later.
-The eventual video combines the Blender cartridge animation with the B-roll
-clips. The `create` command prepares the eight text prompts; it does not generate
-images or clips. The original supplied wording remains in the `v1` templates.
+The current video uses **four transparent cartridge images and four B-roll
+clips**, each animated from its own still. The `render` command animates the
+cartridge cutouts in FFmpeg and then shows the B-roll. A second clip per story
+can be added to the collection later. The `create` command prepares the eight
+text prompts; it does not generate images or clips. The original supplied
+wording remains in the `v1` templates.
 The revised B-roll templates use `v2`; all versions use `[VARIABLE]` placeholders.
 
 ## Install
@@ -47,6 +49,80 @@ python -m pip install -e '.[dev]'
 For a regular installation without development tools, use `python -m pip install .`.
 Pydantic v2 is the only dependency for the mock workflow. Installation may download dependencies;
 running the mock workflow does not.
+
+## Render the reel locally
+
+Requires FFmpeg and ffprobe on `PATH`, with the `libx264` encoder and `drawtext`
+filter available. The first pass was verified with FFmpeg 9.0.1. The renderer
+uses an installed Liberation Sans, DejaVu Sans, or Arial bold font; pass
+`--font-file /path/to/font.ttf` to select a different font. No API keys or optional
+media Python dependencies are required for rendering existing assets.
+
+With the four cartridge and B-roll runs already generated:
+
+```sh
+save-reel render \
+  --collection examples/cartridges/v2/collection.json \
+  --settings examples/reel-first-pass.json \
+  --run-id reel-first-pass
+```
+
+The command prints `runs/reel-first-pass/reel.mp4`. The default output is
+1080×1920, 24 fps, H.264 with AAC audio, and has this 29-second timeline:
+
+| Time | Content |
+| --- | --- |
+| 0–4 seconds | Four transparent cartridges in a 2×2 grid, introduction text |
+| 4–9 seconds | Same animated grid, countdown from 5 to 1, one tone per second |
+| 9–14 seconds | DEEP END |
+| 14–19 seconds | SUNROOM LINE |
+| 19–24 seconds | VELVET ORCHARD |
+| 24–29 seconds | SIGNAL 03 |
+
+The cartridges use the four supplied sine motions, with amplitudes in pixels at
+1080-pixel width and proportional scaling for smaller renders. Each reveal starts
+with a short save-number/title caption. Clips are center-cropped to exact 9:16,
+resized, and trimmed to five seconds. Original clip audio is removed. Only the
+locally synthesized countdown tones play; the introduction and B-roll are silent
+until narration and your supplied music are added.
+
+Edit `examples/reel-first-pass.json` to change the introduction duration, countdown,
+clip duration, bobbing, text, background, captions, sound volume, or output size.
+Durations must fit whole frames and dimensions must be even and exactly 9:16.
+The introduction timing and narration text are stored explicitly for a future
+ElevenLabs narration stage; no narration API is connected in this step. Additional
+B-roll run IDs in a game's `broll_run_ids` list play consecutively before the next
+game, each for `clip_seconds`.
+
+The collection sets save order and references completed `cartridge.json` and
+`broll.json` runs. The renderer checks titles, transparency settings, checksums,
+and available clip duration before creating a render run. `values_file` is retained
+as collection metadata; rendering reads the saved media runs. `--source-runs-dir`
+selects their root directory; `--runs-dir` selects the output root. Both default to
+`runs/` relative to the current directory. Use a fresh run ID for each revision;
+existing runs are never overwritten. `--ffmpeg` and `--ffprobe` accept custom
+executable paths.
+
+```text
+runs/<render_run_id>/
+  reel.mp4             # Final output, saved after validation
+  render.json          # Collection, settings, timeline, stages, artifact checksums
+  probe.json           # Verified output media properties
+  inputs/save_01/...   # Copies of source cutout/clip assets, through save_04
+  segments/...         # Encoded intro and individual reveals
+  audio/countdown.wav  # Countdown track on the complete reel timeline
+  filters/...          # Saved FFmpeg filter graphs
+  text/...             # Captions passed as literal text files
+  font.ttf
+  command_*.json       # Exact FFmpeg argument lists
+  ffmpeg_*.log
+  run.log
+```
+
+The run is self-contained and retains its inputs for future editing. Failed
+renders record the failed stage and retain diagnostic logs; start a new run after
+fixing the cause. `render.json` describes assembly and remains separate from the
+creative `manifest.json` produced by `create`. Rendering calls no paid providers.
 
 ## Generate cartridge renders
 
@@ -90,7 +166,7 @@ runs/<run_id>/
 checksum, image settings, stage status, request ID, usage, and artifact checksums.
 The updated supplied wording is preserved in `prompts/cartridge/v2.txt`.
 These are PNG cutouts of complete cartridges for later compositing, not Blender
-meshes or flat label textures. FFmpeg compositing is not implemented yet.
+meshes or flat label textures. Use `render` to composite them into the reel intro.
 
 The original full-scene template and values remain available. To use them, select
 `--template-version v1 --background opaque` with a values file directly under
@@ -140,7 +216,7 @@ or `--resolution 2K`. Duration must be an integer from 4 through 15.
 MiniMax can return quantized dimensions and a slightly different duration. The
 first DEEP END run returned a 768×1344, 24 fps clip lasting 5.167 seconds from the
 864×1536 still. This workflow saves the provider output without cropping,
-resizing, or trimming; exact 9:16 finishing remains a later processing step.
+resizing, or trimming; the separate `render` command performs exact 9:16 finishing.
 
 New B-roll runs use `prompts/broll_still/v2.txt` and `prompts/broll_video/v2.txt`.
 DEEP END now emphasizes a moonlit patch of luminous pool water, low mist, and
@@ -160,8 +236,9 @@ This is a prompt instruction, not an API guarantee: the documented
 has no audio-off parameter. Its published
 [pricing](https://platform.minimax.io/docs/pricing/overview) lists video charges by
 duration and resolution, with no separate generated-audio surcharge or silent
-discount listed. The downloaded video may still contain audio. Replacing that
-track with your supplied MP3 belongs to the later editing stage.
+discount listed. The downloaded video may still contain audio. The `render`
+command removes it and adds the countdown track. Mixing your supplied MP3 is a
+future editing step.
 
 ```text
 runs/<run_id>/
@@ -318,6 +395,8 @@ src/save_reel/
   broll.py         # Single-game real generation and resume checkpoints
   cartridge.py     # Cartridge generation and resume checkpoints
   media_models.py  # B-roll/cartridge inputs, shared image settings, and state
+  render_models.py # Ordered collections, editable timing/layout, and render state
+  rendering.py     # FFmpeg composition, countdown audio, and output validation
   cartridge_cli.py # Image-only cartridge command setup
   media_cli.py     # Optional SDK setup and environment credentials
   cli.py           # Argument parsing and dependency assembly
@@ -462,7 +541,9 @@ The real B-roll workflow uses `ImageProvider` and `VideoProvider` protocols in
 Image generation consumes the deterministic B-roll still prompt; MiniMax consumes
 that image and a separate deterministic motion prompt.
 Blender can consume the generated label images and `CartridgeSpec`, and
-FFmpeg can consume recorded image, video, and render artifacts. Keep API clients
+`ReelRenderer` already consumes recorded cartridge and video artifacts through
+FFmpeg. A future narration provider can generate audio using the saved narration
+text and introduction timing, then extend the assembly audio mix. Keep API clients
 and process execution inside their adapters/stages. Add their own versioned
 templates where needed. None of these integrations needs to change the concept
 provider contract or the stage runner.
@@ -485,3 +566,13 @@ Media tests use fake providers and mock HTTP transports, including real PNG
 validation, V2 payloads, credential-free CDN downloads, failure checkpoints,
 resume behavior, and prevention of duplicate submissions. They make no real API
 calls. They are skipped when optional media dependencies are absent.
+
+`tests/test_rendering.py` includes a small real FFmpeg render using synthetic
+transparent PNGs and coloured clips. It checks compositing, bobbing, reveal order,
+timing, countdown sound, removal of source audio, and recorded failures. Those
+integration checks skip when FFmpeg, ffprobe, or a suitable font is unavailable;
+render schema/timeline tests still run. For focused local verification:
+
+```sh
+python -m pytest tests/test_rendering.py tests/test_cli.py
+```

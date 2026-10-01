@@ -1,0 +1,23 @@
+{
+  "width": 1080,
+  "height": 1920,
+  "fps": 24,
+  "intro_seconds": 4,
+  "countdown_seconds": 5,
+  "clip_seconds": 5,
+  "background_color": "#0d152b",
+  "heading": "CHOOSE YOUR SAVE",
+  "intro_lines": [
+    "You have died.",
+    "Choose a game cartridge",
+    "to be reincarnated into."
+  ],
+  "show_clip_titles": true,
+  "countdown_volume": 0.22,
+  "bobbing": [
+    {"speed": 1.1, "phase": 0, "amplitude": 7},
+    {"speed": 1.0, "phase": 1.4, "amplitude": 8},
+    {"speed": 1.2, "phase": 2.7, "amplitude": 6},
+    {"speed": 0.9, "phase": 4.0, "amplitude": 8}
+  ]
+}

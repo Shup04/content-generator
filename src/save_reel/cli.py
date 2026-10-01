@@ -103,6 +103,17 @@ def build_parser() -> argparse.ArgumentParser:
     resume_cartridge.add_argument("run_dir", type=Path)
     for command in (cartridge, resume_cartridge):
         command.add_argument("--env-file", type=Path, default=Path(".env"))
+    render = commands.add_parser("render", help="Assemble saved cartridges and B-roll with FFmpeg")
+    render.add_argument("--collection", type=Path, required=True)
+    render.add_argument(
+        "--settings", type=Path, help="Render settings JSON; defaults to the first pass"
+    )
+    render.add_argument("--source-runs-dir", type=Path, default=Path("runs"))
+    render.add_argument("--runs-dir", type=Path, default=Path("runs"))
+    render.add_argument("--run-id")
+    render.add_argument("--font-file", type=Path)
+    render.add_argument("--ffmpeg", default="ffmpeg")
+    render.add_argument("--ffprobe", default="ffprobe")
     return parser
 
 
@@ -112,6 +123,21 @@ def main(argv: Sequence[str] | None = None) -> int:
     # Provider libraries may otherwise log signed download URLs at INFO.
     logging.getLogger("httpx").setLevel(logging.WARNING)
     try:
+        if args.command == "render":
+            from save_reel.render_models import RenderCollection, RenderSettings
+            from save_reel.rendering import ReelRenderer
+
+            collection = RenderCollection.model_validate_json(args.collection.read_text())
+            settings = (
+                RenderSettings.model_validate_json(args.settings.read_text())
+                if args.settings else RenderSettings()
+            )
+            output = ReelRenderer(ffmpeg=args.ffmpeg, ffprobe=args.ffprobe).render(
+                collection, settings, source_runs_dir=args.source_runs_dir,
+                runs_dir=args.runs_dir, run_id=args.run_id, font_file=args.font_file,
+            )
+            print(output)
+            return 0
         if args.command in {"generate-cartridge", "resume-cartridge"}:
             try:
                 from save_reel.cartridge_cli import run_cartridge_command
