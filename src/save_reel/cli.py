@@ -114,6 +114,23 @@ def build_parser() -> argparse.ArgumentParser:
     render.add_argument("--font-file", type=Path)
     render.add_argument("--ffmpeg", default="ffmpeg")
     render.add_argument("--ffprobe", default="ffprobe")
+    narrate = commands.add_parser("narrate", help="Add ElevenLabs narration to a saved reel")
+    narrate.add_argument("--render-run", type=Path, required=True)
+    narrate.add_argument("--script", type=Path, required=True)
+    narrate.add_argument("--runs-dir", type=Path, default=Path("runs"))
+    narrate.add_argument("--run-id")
+    narrate.add_argument("--voice-id", help="Overrides ELEVENLABS_VOICE_ID; otherwise auto-select")
+    narrate.add_argument("--model", default="eleven_multilingual_v2")
+    narrate.add_argument("--speed", type=float, default=1.0)
+    narrate.add_argument("--no-subtitles", action="store_true")
+    resume_narration = commands.add_parser(
+        "resume-narration", help="Reuse saved speech and finish narration assembly"
+    )
+    resume_narration.add_argument("run_dir", type=Path)
+    for command in (narrate, resume_narration):
+        command.add_argument("--env-file", type=Path, default=Path(".env"))
+        command.add_argument("--ffmpeg", default="ffmpeg")
+        command.add_argument("--ffprobe", default="ffprobe")
     return parser
 
 
@@ -123,6 +140,15 @@ def main(argv: Sequence[str] | None = None) -> int:
     # Provider libraries may otherwise log signed download URLs at INFO.
     logging.getLogger("httpx").setLevel(logging.WARNING)
     try:
+        if args.command in {"narrate", "resume-narration"}:
+            try:
+                from save_reel.narration_cli import run_narration_command
+            except ImportError:
+                raise MediaError(
+                    "Install speech dependencies with: python -m pip install -e '.[speech]'"
+                ) from None
+            print(run_narration_command(args))
+            return 0
         if args.command == "render":
             from save_reel.render_models import RenderCollection, RenderSettings
             from save_reel.rendering import ReelRenderer

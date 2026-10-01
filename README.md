@@ -7,9 +7,10 @@ without API keys or network access.
 
 Optional real workflows generate full cartridge renders with GPT Image 2.5,
 or generate B-roll stills and animate them with MiniMax H3. The local `render`
-command combines saved cartridges and B-roll into a finished vertical MP4 with
-FFmpeg. Separate flat label image generation, Blender, narration, and social
-publishing are not implemented.
+command combines saved cartridges and B-roll into a vertical MP4 with FFmpeg.
+The `narrate` command adds ElevenLabs speech and timed subtitles from a manually
+written script. Separate flat label image generation, Blender, orchestration,
+and social publishing are not implemented.
 
 ## How the prompts fit your video
 
@@ -89,8 +90,8 @@ until narration and your supplied music are added.
 Edit `examples/reel-first-pass.json` to change the introduction duration, countdown,
 clip duration, bobbing, text, background, captions, sound volume, or output size.
 Durations must fit whole frames and dimensions must be even and exactly 9:16.
-The introduction timing and narration text are stored explicitly for a future
-ElevenLabs narration stage; no narration API is connected in this step. Additional
+The introduction timing is stored explicitly for the separate ElevenLabs
+`narrate` command described below. Additional
 B-roll run IDs in a game's `broll_run_ids` list play consecutively before the next
 game, each for `clip_seconds`.
 
@@ -123,6 +124,90 @@ The run is self-contained and retains its inputs for future editing. Failed
 renders record the failed stage and retain diagnostic logs; start a new run after
 fixing the cause. `render.json` describes assembly and remains separate from the
 creative `manifest.json` produced by `create`. Rendering calls no paid providers.
+
+## Add narration and subtitles
+
+Install the optional speech dependencies (also included in `.[media]`):
+
+```sh
+python -m pip install -e '.[speech]'
+```
+
+Add `ELEVENLABS_API_KEY` to your local `.env`. The key needs Text to Speech access;
+automatic voice selection also needs permission to read Voices. Optionally set
+`ELEVENLABS_VOICE_ID` or pass `--voice-id`. Otherwise, the command selects an
+available stock voice, preferring George. It does not clone or add voices. As with
+the other API commands, existing environment variables take precedence over `.env`;
+`--env-file` chooses another local file. Never commit credentials.
+
+```sh
+save-reel narrate \
+  --render-run runs/reel-first-pass \
+  --script examples/narration-first-pass.json \
+  --run-id reel-narrated-v1
+```
+
+This makes **five paid ElevenLabs requests**: one introduction and one reveal line
+per game. The default model is `eleven_multilingual_v2`, with MP3 audio and
+character timestamps from the
+[speech-with-timing endpoint](https://elevenlabs.io/docs/api-reference/text-to-speech/convert-with-timestamps).
+`--model` selects another compatible TTS model; `--speed` controls generation
+speed from 0.7 to 1.2. Voice selection uses the
+[voice-list endpoint](https://elevenlabs.io/docs/api-reference/voices/search).
+
+The supplied script is a manual first pass: DEEP END's unreachable exit, SUNROOM
+LINE's safe journey, VELVET ORCHARD's stolen memories, and SIGNAL 03's unresolved
+identity. Edit that JSON to change the narration. Its four titles and order must
+match the source render. No LLM or orchestrator writes or changes the script.
+
+FFmpeg positions speech within the saved introduction and each game's B-roll
+window, retaining the countdown audio and leaving its five seconds speech-free.
+The voice track is normalized and mixed with the original reel audio. When a
+line is slightly too long, FFmpeg increases tempo without changing pitch, up to
+1.35×; it fails with an actionable error if a line still will not fit. Leading
+and trailing silence are trimmed using the returned timestamps. Speech is never
+silently truncated to force it into a scene.
+
+Short phrase subtitles follow those same timestamps and tempo adjustments. They
+are burned into the image using FFmpeg `drawtext` and also saved as `subtitles.srt`.
+Literal text files keep punctuation out of filter syntax. Pass `--no-subtitles`
+to preserve the video stream without re-encoding it; the SRT is still saved.
+The original render stays intact. Narration output is a separate run:
+
+```text
+runs/<narration_run_id>/
+  reel.mp4              # Narrated reel, with subtitles by default
+  narration.json        # Source render, script, voice settings, stages, checksums
+  script.json
+  source.mp4            # Copy of the original reel and its countdown audio
+  speech/intro.mp3      # Original generated speech; also save_01 through save_04
+  speech/intro.json     # Character timestamps, request ID, reported character cost
+  narration.wav         # Voice track positioned on the complete reel timeline
+  speech_plan.json      # Trim/tempo/offset decisions and caption times
+  subtitles.srt
+  text/subtitle_*.txt
+  voice_filter.txt
+  mix_filter.txt
+  font.ttf
+  probe.json
+  command_*.json
+  ffmpeg_*.log
+  run.log
+```
+
+```sh
+save-reel resume-narration runs/reel-narrated-v1
+```
+
+Resume verifies checksums and reuses saved speech. A completed run returns its
+existing video. If local FFmpeg assembly failed after speech was saved, resume
+retries only that local work and needs no API key. Paid POSTs are not automatically
+retried: an attempted request without a saved result requires checking ElevenLabs
+history before starting a new run. A `.narration.lock` prevents concurrent work;
+if a process was killed, confirm it stopped before removing that lock.
+
+This is a manual narration/assembly step. Music mixing and automatic orchestration
+remain future work. The initial test output is `runs/reel-narrated-v1/reel.mp4`.
 
 ## Generate cartridge renders
 
@@ -388,6 +473,8 @@ src/save_reel/
     media.py        # Image/video provider contracts
     openai_image.py # GPT Image 2.5 adapter
     minimax_video.py # MiniMax H3 V2 adapter
+    speech.py       # SpeechProvider contract and generated speech result
+    elevenlabs_speech.py # ElevenLabs voice discovery and speech with timestamps
   prompting.py     # Strict template rendering and template provenance
   storage.py       # Run paths, JSON loading, atomic file replacement
   stages.py        # ReelStage protocol and prompt compilation stages
@@ -397,6 +484,9 @@ src/save_reel/
   media_models.py  # B-roll/cartridge inputs, shared image settings, and state
   render_models.py # Ordered collections, editable timing/layout, and render state
   rendering.py     # FFmpeg composition, countdown audio, and output validation
+  narration_models.py # Manual scripts, voice settings, character alignment, state
+  narration.py     # Checkpointed speech generation, timed captions, and FFmpeg mix
+  narration_cli.py # Optional speech dependency and credential setup
   cartridge_cli.py # Image-only cartridge command setup
   media_cli.py     # Optional SDK setup and environment credentials
   cli.py           # Argument parsing and dependency assembly
@@ -542,8 +632,8 @@ Image generation consumes the deterministic B-roll still prompt; MiniMax consume
 that image and a separate deterministic motion prompt.
 Blender can consume the generated label images and `CartridgeSpec`, and
 `ReelRenderer` already consumes recorded cartridge and video artifacts through
-FFmpeg. A future narration provider can generate audio using the saved narration
-text and introduction timing, then extend the assembly audio mix. Keep API clients
+FFmpeg. `SpeechProvider` supplies audio plus character timing; `NarrationPipeline`
+places that speech into the rendered scene windows and creates captions. Keep API clients
 and process execution inside their adapters/stages. Add their own versioned
 templates where needed. None of these integrations needs to change the concept
 provider contract or the stage runner.
@@ -575,4 +665,13 @@ render schema/timeline tests still run. For focused local verification:
 
 ```sh
 python -m pytest tests/test_rendering.py tests/test_cli.py
+```
+
+`tests/test_narration.py` checks ElevenLabs requests with mock HTTP, safe failures,
+alignment validation, tempo-adjusted subtitle times, and cached resume without
+duplicate requests. Its real local FFmpeg test verifies speech in each scene,
+preserved countdown audio, and burned captions. No test makes paid API calls:
+
+```sh
+python -m pytest tests/test_narration.py tests/test_cli.py
 ```
