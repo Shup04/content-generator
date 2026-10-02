@@ -1,0 +1,9 @@
+{
+  "setting_families": ["maritime", "transportation", "agriculture", "civic", "communications", "industry", "science", "utilities", "mining", "forestry", "archives", "recreation", "food production", "lodging", "commerce", "healthcare", "education", "domestic"],
+  "surface_emotions": ["comfort", "curiosity", "relief", "belonging", "wonder", "familiarity"],
+  "deeper_emotions": ["dread", "resignation", "loneliness", "unease", "grief", "dependency"],
+  "resource_pressures": ["sustenance", "shelter", "energy", "rest", "access", "mutual dependence"],
+  "eras": ["2002–2004", "2003–2005", "2004–2006"],
+  "times": ["night", "dawn", "daylight", "dusk"],
+  "weather": ["cold", "wet", "dry", "changeable"]
+}

@@ -1,0 +1,13 @@
+[WRITING_RULES]
+
+STAGE: Rewrite ONLY the spoken narration from this saved survival brief. Keep its
+facts, title, rule, consequence and permanent drawback unchanged. Do not add new lore
+or change visual variables. Use narration_policy for the line and word targets.
+Each line adds information. End on the consequential rule or permanent condition.
+Leave the saved mystery unanswered. Return only the narration array in the schema.
+
+CONTEXT JSON:
+[CONTEXT]
+
+VALIDATION FEEDBACK:
+[FEEDBACK]

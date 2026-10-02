@@ -1,0 +1,15 @@
+[WRITING_RULES]
+
+STAGE: Generate exactly the configured candidates_per_save survival concepts for this
+seed. Candidate IDs must be save_NN_candidate_1, save_NN_candidate_2, etc., using the
+supplied save_id. Each title must be distinct. Keep the seed's danger_type and
+long_term_cost_type exactly. Make alternatives materially different in daily routine,
+resource supply, safe sleeping, survival rule, consequence and reason to choose.
+The seed's social state and impossible property must matter. Give every candidate a
+specific unresolved mystery and a strong visual hook. No final narration yet.
+
+CONTEXT JSON:
+[CONTEXT]
+
+VALIDATION FEEDBACK (empty on first attempt):
+[FEEDBACK]

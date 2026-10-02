@@ -14,6 +14,7 @@ dependencies = ["pydantic>=2.12,<3"]
 dev = ["pytest>=8,<10", "ruff>=0.11,<1"]
 media = ["openai>=2.53,<3", "httpx>=0.28,<1", "python-dotenv>=1,<2", "pillow>=11,<13"]
 speech = ["httpx>=0.28,<1", "python-dotenv>=1,<2"]
+story = ["openai>=2.53,<3", "python-dotenv>=1,<2"]
 
 [project.scripts]
 save-reel = "save_reel.cli:main"
@@ -24,7 +25,8 @@ package-dir = {"" = "src", "save_reel.prompt_templates" = "prompts"}
 include-package-data = false
 
 [tool.setuptools.package-data]
-"save_reel.prompt_templates" = ["environment/*.txt", "label/*.txt", "broll_still/*.txt", "broll_video/*.txt", "cartridge/*.txt"]
+"save_reel" = ["assets/fonts/*.ttf", "assets/fonts/*OFL.txt", "assets/fonts/README.txt"]
+"save_reel.prompt_templates" = ["environment/*.txt", "label/*.txt", "broll_still/*.txt", "broll_video/*.txt", "cartridge/*.txt", "story_*/*.txt", "world_seeds/*.json", "story_fixtures/*.json"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

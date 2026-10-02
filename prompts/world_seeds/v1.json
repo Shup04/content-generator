@@ -1,0 +1,453 @@
+{
+  "settings": [
+    {
+      "setting_family": "civic",
+      "specific_setting": "municipal rooftop greenhouse",
+      "title": "GREEN REGISTER",
+      "dominant_material": "wet green glass",
+      "visual_motif": "illuminated seed drawers"
+    },
+    {
+      "setting_family": "civic",
+      "specific_setting": "night permit office",
+      "title": "COUNTER NINE",
+      "dominant_material": "amber perspex",
+      "visual_motif": "numbered velvet chairs"
+    },
+    {
+      "setting_family": "civic",
+      "specific_setting": "public clock repair depot",
+      "title": "SECOND HAND",
+      "dominant_material": "brass and blue laminate",
+      "visual_motif": "stopped clocks in wire cages"
+    },
+    {
+      "setting_family": "communications",
+      "specific_setting": "clifftop telephone exchange",
+      "title": "HOLD MUSIC",
+      "dominant_material": "cream plastic and copper",
+      "visual_motif": "lit switchboard cords"
+    },
+    {
+      "setting_family": "communications",
+      "specific_setting": "rural relay tower service yard",
+      "title": "CARRIER FIELD",
+      "dominant_material": "painted steel",
+      "visual_motif": "antennae bent toward one window"
+    },
+    {
+      "setting_family": "communications",
+      "specific_setting": "community cable broadcast studio",
+      "title": "LOCAL CHANNEL",
+      "dominant_material": "mauve acoustic foam",
+      "visual_motif": "empty lit news desks"
+    },
+    {
+      "setting_family": "agriculture",
+      "specific_setting": "underground mushroom allotments",
+      "title": "WHITE HARVEST",
+      "dominant_material": "damp concrete",
+      "visual_motif": "numbered glowing crop trays"
+    },
+    {
+      "setting_family": "agriculture",
+      "specific_setting": "terraced citrus packing works",
+      "title": "CITRUS SHIFT",
+      "dominant_material": "orange mesh and faded teal",
+      "visual_motif": "fruit returning up the conveyor"
+    },
+    {
+      "setting_family": "agriculture",
+      "specific_setting": "heated winter seed nursery",
+      "title": "FIRST FROST",
+      "dominant_material": "polycarbonate and pink tile",
+      "visual_motif": "frost on the inside of lamps"
+    },
+    {
+      "setting_family": "industry",
+      "specific_setting": "mountainside ceramics kiln village",
+      "title": "KILN WATCH",
+      "dominant_material": "ochre brick and blue enamel",
+      "visual_motif": "warm ceramic doors"
+    },
+    {
+      "setting_family": "industry",
+      "specific_setting": "flooded textile dye works",
+      "title": "RINSE CYCLE",
+      "dominant_material": "violet tile and iron",
+      "visual_motif": "suspended empty uniforms"
+    },
+    {
+      "setting_family": "industry",
+      "specific_setting": "salt refinery evaporation deck",
+      "title": "BRINE INDEX",
+      "dominant_material": "white salt and turquoise metal",
+      "visual_motif": "black squares in white salt beds"
+    },
+    {
+      "setting_family": "science",
+      "specific_setting": "abandoned gravity calibration chamber",
+      "title": "LEVEL ZERO",
+      "dominant_material": "pale rubber and black glass",
+      "visual_motif": "a plumb line pointing upward"
+    },
+    {
+      "setting_family": "science",
+      "specific_setting": "polar specimen conservatory",
+      "title": "THAW ROOM",
+      "dominant_material": "blue ice and beige vinyl",
+      "visual_motif": "orange numbered sample lockers"
+    },
+    {
+      "setting_family": "science",
+      "specific_setting": "hillside weather balloon workshop",
+      "title": "LOW PRESSURE",
+      "dominant_material": "yellow nylon and raw timber",
+      "visual_motif": "balloons pressing against the floor"
+    },
+    {
+      "setting_family": "utilities",
+      "specific_setting": "night reservoir valve station",
+      "title": "HEADWATER",
+      "dominant_material": "blue enamel and grey concrete",
+      "visual_motif": "a lit gauge larger than its doorway"
+    },
+    {
+      "setting_family": "utilities",
+      "specific_setting": "remote electric substation cabins",
+      "title": "NIGHT CURRENT",
+      "dominant_material": "green ceramic and red steel",
+      "visual_motif": "warm orange windows among pylons"
+    },
+    {
+      "setting_family": "utilities",
+      "specific_setting": "district boiler control room",
+      "title": "HEAT DEBT",
+      "dominant_material": "red pipes and yellow linoleum",
+      "visual_motif": "steam circling an unlit furnace"
+    },
+    {
+      "setting_family": "maritime",
+      "specific_setting": "dry inland lighthouse settlement",
+      "title": "LOW TIDE LIGHT",
+      "dominant_material": "white plaster and bottle glass",
+      "visual_motif": "a moving tide mark on dry walls"
+    },
+    {
+      "setting_family": "maritime",
+      "specific_setting": "submerged diving bell workshop",
+      "title": "BELL HOUSE",
+      "dominant_material": "copper and green glass",
+      "visual_motif": "sealed bells rocking without water"
+    },
+    {
+      "setting_family": "maritime",
+      "specific_setting": "storm buoy maintenance island",
+      "title": "ANCHOR DUTY",
+      "dominant_material": "faded orange rubber",
+      "visual_motif": "lights moving below solid ground"
+    },
+    {
+      "setting_family": "mining",
+      "specific_setting": "chalk quarry lift platforms",
+      "title": "WHITE DESCENT",
+      "dominant_material": "chalk and blue steel",
+      "visual_motif": "numbered platforms over a bright void"
+    },
+    {
+      "setting_family": "mining",
+      "specific_setting": "warm gemstone sorting cave",
+      "title": "SORTING LIGHT",
+      "dominant_material": "rose quartz and grey rubber",
+      "visual_motif": "stones moving against the chute"
+    },
+    {
+      "setting_family": "mining",
+      "specific_setting": "underground surveyors canteen",
+      "title": "DEPTH MARK",
+      "dominant_material": "ochre tile and chrome",
+      "visual_motif": "a depth gauge above every plate"
+    },
+    {
+      "setting_family": "forestry",
+      "specific_setting": "fire lookout cabin network",
+      "title": "WATCH SEASON",
+      "dominant_material": "cedar and green metal",
+      "visual_motif": "red beacons below the treetops"
+    },
+    {
+      "setting_family": "forestry",
+      "specific_setting": "indoor timber drying forest",
+      "title": "KNOT GARDEN",
+      "dominant_material": "cut pine and clear vinyl",
+      "visual_motif": "trees stacked like shelves"
+    },
+    {
+      "setting_family": "forestry",
+      "specific_setting": "mountain sap collection lodge",
+      "title": "AMBER RATION",
+      "dominant_material": "maple wood and brown glass",
+      "visual_motif": "bottles filling without pipes"
+    },
+    {
+      "setting_family": "archive",
+      "specific_setting": "tide-controlled map repository",
+      "title": "PAPER COAST",
+      "dominant_material": "faded blue paper and zinc",
+      "visual_motif": "wet coastlines on dry charts"
+    },
+    {
+      "setting_family": "archive",
+      "specific_setting": "municipal lost property vault",
+      "title": "CLAIM TICKET",
+      "dominant_material": "grey felt and mint steel",
+      "visual_motif": "one lit suitcase on an empty belt"
+    },
+    {
+      "setting_family": "archive",
+      "specific_setting": "night microfilm reading annex",
+      "title": "FRAME LIMIT",
+      "dominant_material": "beige plastic and black velvet",
+      "visual_motif": "one projector facing a bricked window"
+    },
+    {
+      "setting_family": "recreation",
+      "specific_setting": "closed astronomical summer camp",
+      "title": "LAST ORBIT",
+      "dominant_material": "blue canvas and aluminium",
+      "visual_motif": "telescope shadows pointing elsewhere"
+    },
+    {
+      "setting_family": "recreation",
+      "specific_setting": "rooftop miniature golf settlement",
+      "title": "NINTH GREEN",
+      "dominant_material": "faded turf and lilac plastic",
+      "visual_motif": "one glowing hole without a flag"
+    },
+    {
+      "setting_family": "recreation",
+      "specific_setting": "underground roller rink refuge",
+      "title": "AFTER SESSION",
+      "dominant_material": "maple flooring and pink neon",
+      "visual_motif": "one skate circling the ceiling"
+    },
+    {
+      "setting_family": "food_production",
+      "specific_setting": "automated bakery sleeping quarter",
+      "title": "DAWN BATCH",
+      "dominant_material": "cream enamel and brown tile",
+      "visual_motif": "warm empty bread trays"
+    },
+    {
+      "setting_family": "food_production",
+      "specific_setting": "mountain ice storage depot",
+      "title": "COLD ACCOUNT",
+      "dominant_material": "silver foil and pale blue ice",
+      "visual_motif": "numbered doors sweating in frost"
+    },
+    {
+      "setting_family": "food_production",
+      "specific_setting": "moth-lit tea drying courtyard",
+      "title": "LEAF WATCH",
+      "dominant_material": "woven bamboo and green tile",
+      "visual_motif": "leaves suspended over the drying racks"
+    },
+    {
+      "setting_family": "recreation",
+      "specific_setting": "indoor wave pool maintenance level",
+      "title": "DEEP SERVICE",
+      "dominant_material": "blue tile and yellow plastic",
+      "visual_motif": "a glowing empty lifeguard chair"
+    },
+    {
+      "setting_family": "commercial",
+      "specific_setting": "suburban shopping mall delivery basement",
+      "title": "RECEIVING BAY",
+      "dominant_material": "pink marble and green steel",
+      "visual_motif": "a single operating checkout belt"
+    },
+    {
+      "setting_family": "lodging",
+      "specific_setting": "airport hotel laundry annex",
+      "title": "LINEN COUNT",
+      "dominant_material": "peach wallpaper and white tile",
+      "visual_motif": "a freshly made bed behind wired glass"
+    },
+    {
+      "setting_family": "transportation",
+      "specific_setting": "overnight mountain freight train",
+      "title": "GRADE LIMIT",
+      "dominant_material": "brown vinyl and yellow steel",
+      "visual_motif": "a carriage window full of stationary snow"
+    },
+    {
+      "setting_family": "transportation",
+      "specific_setting": "elevated highway toll compound",
+      "title": "LAST TOLL",
+      "dominant_material": "grey asphalt and amber glass",
+      "visual_motif": "a lit toll booth below an upside-down road"
+    },
+    {
+      "setting_family": "lodging",
+      "specific_setting": "winter island resort staff compound",
+      "title": "OFF SEASON",
+      "dominant_material": "turquoise stucco and bleached wood",
+      "visual_motif": "a locked beach umbrella glowing underneath"
+    }
+  ],
+  "hazards": [
+    {
+      "danger_type": "environmental_cycle",
+      "survival_rule_type": "shelter during a measurable pressure change",
+      "rule": "When the gauge drops, shut your door.",
+      "consequence": "The pressure outside crushes your lungs.",
+      "threat": "Pressure falls without warning outside the sleeping rooms.",
+      "sleep": "You can sleep in the pressure-sealed caretaker booth.",
+      "last": "A falling gauge means you must seal your door."
+    },
+    {
+      "danger_type": "predatory_inhabitant",
+      "survival_rule_type": "never answer the maintenance call",
+      "rule": "Never answer when the caretaker calls your number.",
+      "consequence": "Answering lets the caretaker enter your shelter.",
+      "threat": "The caretaker collects anyone who answers its nightly roll call.",
+      "sleep": "You can sleep behind a latched service hatch.",
+      "last": "Never answer when the caretaker calls your number."
+    },
+    {
+      "danger_type": "infrastructure_failure",
+      "survival_rule_type": "keep a critical light supplied",
+      "rule": "Replace the booth battery before its light turns blue.",
+      "consequence": "An unlit booth loses its breathable air.",
+      "threat": "Only the lit booths contain breathable air after dark.",
+      "sleep": "You can sleep in a booth with a working lamp.",
+      "last": "Replace your battery before the booth light turns blue."
+    },
+    {
+      "danger_type": "coercive_workers",
+      "survival_rule_type": "honor the work roster",
+      "rule": "Always clock out before the second bell.",
+      "consequence": "Late workers must stand at their post until tomorrow.",
+      "threat": "The workers chain late arrivals to their workstations.",
+      "sleep": "You can sleep in a signed-out worker bunk.",
+      "last": "Clock out before the second bell or lose tomorrow."
+    },
+    {
+      "danger_type": "spatial_displacement",
+      "survival_rule_type": "mark the route home physically",
+      "rule": "Keep one hand on the handrail when returning home.",
+      "consequence": "Releasing it sends you to an unheated duplicate building.",
+      "threat": "The access paths change destination when nobody touches them.",
+      "sleep": "You can sleep in the only heated service cabin.",
+      "last": "Keep touching the handrail or you cannot get home."
+    },
+    {
+      "danger_type": "contaminated_supply",
+      "survival_rule_type": "test each delivery",
+      "rule": "Only eat food that makes the test strip green.",
+      "consequence": "Untested food seals your mouth shut for three days.",
+      "threat": "Identical food packets have different effects on your body.",
+      "sleep": "You can sleep in a bolted inspection cubicle.",
+      "last": "Test every meal or your mouth seals shut."
+    },
+    {
+      "danger_type": "hostile_weather",
+      "survival_rule_type": "avoid the rain exposure window",
+      "rule": "Stay under a roof when the rain turns white.",
+      "consequence": "White rain hardens every joint it touches.",
+      "threat": "White rain makes exposed limbs permanently rigid.",
+      "sleep": "You can sleep under the concrete loading canopy.",
+      "last": "Stay indoors when the rain turns white."
+    },
+    {
+      "danger_type": "mechanical_sweep",
+      "survival_rule_type": "clear a marked route",
+      "rule": "Stay off the yellow line after the third horn.",
+      "consequence": "The cleaning machine folds everything on the line into its hopper.",
+      "threat": "A nightly cleaning machine follows the painted route through every room.",
+      "sleep": "You can sleep on the raised inspection shelf.",
+      "last": "The third horn means get off the yellow line."
+    }
+  ],
+  "costs": [
+    {
+      "type": "daily_labor",
+      "detail": "You must pump the drinking water by hand for four hours every day."
+    },
+    {
+      "type": "ration_dependence",
+      "detail": "Only one meal arrives daily, regardless of how much you work."
+    },
+    {
+      "type": "restricted_sleep",
+      "detail": "The shelter alarm wakes you every two hours for the rest of your life."
+    },
+    {
+      "type": "permanent_confinement",
+      "detail": "Your whole life must fit inside the fenced service compound."
+    },
+    {
+      "type": "physical_attrition",
+      "detail": "The cold takes feeling from your fingertips permanently each winter."
+    },
+    {
+      "type": "compulsory_care",
+      "detail": "You must keep an unresponsive neighbor fed to retain your shelter."
+    },
+    {
+      "type": "light_deprivation",
+      "detail": "You can only leave the sleeping booth after natural daylight has ended."
+    },
+    {
+      "type": "constant_relocation",
+      "detail": "Your safe sleeping room changes every night; you can never settle."
+    }
+  ],
+  "palettes": [
+    [
+      "petrol blue",
+      "pale gold",
+      "chalk white"
+    ],
+    [
+      "mint",
+      "rust orange",
+      "ink black"
+    ],
+    [
+      "lavender",
+      "sodium yellow",
+      "cold grey"
+    ],
+    [
+      "deep green",
+      "faded pink",
+      "cream"
+    ]
+  ],
+  "impossible_properties": [
+    "The ceiling shows a different season through every skylight.",
+    "Every window looks onto the underside of the building.",
+    "A second horizon is visible inside a locked glass cabinet.",
+    "The nearest room casts a shadow through all the others.",
+    "All falling objects stop an inch above the floor.",
+    "Sunlight comes from a drain that nobody can open."
+  ],
+  "mock_variants": [
+    {
+      "food": "A hatch dispenses one tin of beans every morning.",
+      "narration": "Your daily meal comes through a hatch.",
+      "routine": "You wash your tin and slide it back before the hatch closes."
+    },
+    {
+      "food": "You must trade scavenged copper for dried peas at the intake counter.",
+      "narration": "Trade copper scraps for dried peas.",
+      "routine": "You weigh copper scraps on the counter before each meal."
+    },
+    {
+      "food": "A hand-cranked dispenser yields bread after an hour of turning.",
+      "narration": "You crank a handle for bread.",
+      "routine": "You wrap the crank in spare cloth to protect your hands."
+    }
+  ]
+}

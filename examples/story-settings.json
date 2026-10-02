@@ -1,0 +1,33 @@
+{
+  "model": "gpt-6-luna",
+  "prompt_version": "v2",
+  "seed_catalog_version": "v2",
+  "candidates_per_save": 3,
+  "validation_retries": 2,
+  "max_output_tokens": 6000,
+  "narration": {
+    "min_lines": 4,
+    "max_lines": 6,
+    "target_min_words": 25,
+    "target_max_words": 40,
+    "word_tolerance": 0.25,
+    "estimated_words_per_minute": 195
+  },
+  "novelty": {
+    "recent_exact_history": 50,
+    "recent_semantic_history": 100,
+    "title_history_window": 50,
+    "title_suffix_limit": 1,
+    "title_token_limit": 3,
+    "title_phrase_limit": 1,
+    "palette_limit": 2,
+    "similarity_threshold": 0.78,
+    "minimum_novelty": 0.7,
+    "minimum_coherence": 0.75,
+    "minimum_overall": 0.72,
+    "minimum_reel_diversity": 0.65,
+    "max_candidate_rounds": 3,
+    "max_reel_replacements": 8,
+    "summary_set_limit": 12
+  }
+}

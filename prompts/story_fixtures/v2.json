@@ -1,0 +1,698 @@
+[
+  {
+    "concept": {
+      "candidate_id": "fixture",
+      "title": "BRINE CLOCK",
+      "premise": "Your home is the submerged maintenance station.",
+      "surface_attraction": "You have a place to rest among sealed chambers below a black tidal inlet.",
+      "resource_situation": "The station grows edible kelp using the air filters.",
+      "safe_sleeping": "You sleep in a sealed pump chamber.",
+      "inhabitants": "Two divers trade filter mesh through a pressure lock.",
+      "primary_danger": "Pressure cycles force seawater through the upper corridors.",
+      "danger_type": "brine clock hazard",
+      "critical_rule": "Close the pressure doors before the warning lamps turn red.",
+      "rule_consequence": "The surge crushes anyone outside a sealed chamber.",
+      "escape": "Every maintained route stays within this system.",
+      "long_term_drawback": "Each cycle corrodes another room, permanently shrinking the habitable station.",
+      "long_term_cost_type": "brine clock permanent bargain",
+      "mundane_detail": "The station grows edible kelp using the air filters.",
+      "unanswered_mystery": "Why does the outside tide follow the station gauge?",
+      "visual_hook": "a red pressure lamp reflected in a door full of black water",
+      "severity": 5,
+      "specific_setting": "submerged maintenance station",
+      "resource_problem": "The station grows edible kelp using the air filters.",
+      "central_mechanic": "Close the pressure doors before the warning lamps turn red.",
+      "emotional_mechanic": "Each cycle corrodes another room, permanently shrinking the habitable station.",
+      "architecture_style": "sealed chambers below a black tidal inlet",
+      "dominant_material": "kelp black surfaces",
+      "time_of_day": "late night",
+      "weather": "cold still air",
+      "anomaly": "The tide rises inside the station before it rises outside.",
+      "palette": [
+        "kelp black",
+        "oxidized copper",
+        "warning vermilion"
+      ],
+      "palette_reason": "The materials and working lights in sealed chambers below a black tidal inlet supply these colors.",
+      "signature": {
+        "setting": "submerged maintenance station",
+        "danger": "Pressure cycles force seawater through the upper corridors.",
+        "rule": "Close the pressure doors before the warning lamps turn red.",
+        "cost": "Each cycle corrodes another room, permanently shrinking the habitable station.",
+        "anomaly": "The tide rises inside the station before it rises outside.",
+        "inhabitants": "Two divers trade filter mesh through a pressure lock."
+      },
+      "causal_logic": {
+        "danger_origin": "Sealed chambers below a black tidal inlet. Pressure cycles force seawater through the upper corridors.",
+        "rule_protection": "Close the pressure doors before the warning lamps turn red. This keeps you outside the failure described here: The surge crushes anyone outside a sealed chamber.",
+        "failure_consequence": "The surge crushes anyone outside a sealed chamber.",
+        "cost_origin": "Each cycle corrodes another room, permanently shrinking the habitable station.",
+        "reason_to_choose": "The station grows edible kelp using the air filters. You sleep in a sealed pump chamber."
+      }
+    },
+    "narration": [
+      "Your home sits below the inlet.",
+      "You eat kelp from the filters.",
+      "Sleep inside a sealed chamber.",
+      "Shut the pressure doors before the lamps turn red."
+    ]
+  },
+  {
+    "concept": {
+      "candidate_id": "fixture",
+      "title": "PALE QUAY",
+      "premise": "Your home is the harbor salt distillation terraces.",
+      "surface_attraction": "You have a place to rest among warm stone terraces surrounding a white harbor.",
+      "resource_situation": "Steam baskets cook shellfish collected from intake grilles.",
+      "safe_sleeping": "You sleep beside a drained boiler.",
+      "inhabitants": "Retired boat builders share the dry terraces.",
+      "primary_danger": "Night tides carry crystals that block every working water intake.",
+      "danger_type": "pale quay hazard",
+      "critical_rule": "Clear your intake grille before the tide reaches its chalk mark.",
+      "rule_consequence": "The blocked boiler runs dry and destroys your drinking-water supply.",
+      "escape": "Every maintained route stays within this system.",
+      "long_term_drawback": "Each successful distillation deposits salt that permanently buries more terrace space.",
+      "long_term_cost_type": "pale quay permanent bargain",
+      "mundane_detail": "Steam baskets cook shellfish collected from intake grilles.",
+      "unanswered_mystery": "Who scratches tomorrow\u2019s water line into the chalk?",
+      "visual_hook": "a glass of clear water balanced on a wall of white salt",
+      "severity": 5,
+      "specific_setting": "harbor salt distillation terraces",
+      "resource_problem": "Steam baskets cook shellfish collected from intake grilles.",
+      "central_mechanic": "Clear your intake grille before the tide reaches its chalk mark.",
+      "emotional_mechanic": "Each successful distillation deposits salt that permanently buries more terrace space.",
+      "architecture_style": "warm stone terraces surrounding a white harbor",
+      "dominant_material": "salt white surfaces",
+      "time_of_day": "late night",
+      "weather": "cold still air",
+      "anomaly": "The sea leaves square salt blocks instead of foam.",
+      "palette": [
+        "salt white",
+        "wet slate",
+        "boiler amber"
+      ],
+      "palette_reason": "The materials and working lights in warm stone terraces surrounding a white harbor supply these colors.",
+      "signature": {
+        "setting": "harbor salt distillation terraces",
+        "danger": "Night tides carry crystals that block every working water intake.",
+        "rule": "Clear your intake grille before the tide reaches its chalk mark.",
+        "cost": "Each successful distillation deposits salt that permanently buries more terrace space.",
+        "anomaly": "The sea leaves square salt blocks instead of foam.",
+        "inhabitants": "Retired boat builders share the dry terraces."
+      },
+      "causal_logic": {
+        "danger_origin": "Warm stone terraces surrounding a white harbor. Night tides carry crystals that block every working water intake.",
+        "rule_protection": "Clear your intake grille before the tide reaches its chalk mark. This keeps you outside the failure described here: The blocked boiler runs dry and destroys your drinking-water supply.",
+        "failure_consequence": "The blocked boiler runs dry and destroys your drinking-water supply.",
+        "cost_origin": "Each successful distillation deposits salt that permanently buries more terrace space.",
+        "reason_to_choose": "Steam baskets cook shellfish collected from intake grilles. You sleep beside a drained boiler."
+      }
+    },
+    "narration": [
+      "You live above a harbor of salt.",
+      "Boilers make your drinking water.",
+      "The tides block their intake grilles.",
+      "Clear yours before the chalk mark goes under."
+    ]
+  },
+  {
+    "concept": {
+      "candidate_id": "fixture",
+      "title": "SEALIGHT",
+      "premise": "Your home is the offshore lamp raft colony.",
+      "surface_attraction": "You have a place to rest among floating lamp frames tethered to a warm trench.",
+      "resource_situation": "You gather fish that cluster beneath the colony lamps.",
+      "safe_sleeping": "You sleep in the central buoy basket.",
+      "inhabitants": "Raft keepers exchange batteries using long poles.",
+      "primary_danger": "An unlit raft loses the buoyancy provided by the luminous plankton.",
+      "danger_type": "sealight hazard",
+      "critical_rule": "Move to the buoy before your last lamp dims.",
+      "rule_consequence": "The dark raft sinks with everything tied to it.",
+      "escape": "Every maintained route stays within this system.",
+      "long_term_drawback": "The lamps consume your shelter timbers as fuel; your raft becomes smaller every week.",
+      "long_term_cost_type": "sealight permanent bargain",
+      "mundane_detail": "You gather fish that cluster beneath the colony lamps.",
+      "unanswered_mystery": "Why is there a lit raft on the seabed?",
+      "visual_hook": "a single green lamp holding a wooden platform above deep water",
+      "severity": 5,
+      "specific_setting": "offshore lamp raft colony",
+      "resource_problem": "You gather fish that cluster beneath the colony lamps.",
+      "central_mechanic": "Move to the buoy before your last lamp dims.",
+      "emotional_mechanic": "The lamps consume your shelter timbers as fuel; your raft becomes smaller every week.",
+      "architecture_style": "floating lamp frames tethered to a warm trench",
+      "dominant_material": "plankton green surfaces",
+      "time_of_day": "late night",
+      "weather": "cold still air",
+      "anomaly": "The plankton rises through wood as if it were glass.",
+      "palette": [
+        "plankton green",
+        "tar brown",
+        "chalk pink"
+      ],
+      "palette_reason": "The materials and working lights in floating lamp frames tethered to a warm trench supply these colors.",
+      "signature": {
+        "setting": "offshore lamp raft colony",
+        "danger": "An unlit raft loses the buoyancy provided by the luminous plankton.",
+        "rule": "Move to the buoy before your last lamp dims.",
+        "cost": "The lamps consume your shelter timbers as fuel; your raft becomes smaller every week.",
+        "anomaly": "The plankton rises through wood as if it were glass.",
+        "inhabitants": "Raft keepers exchange batteries using long poles."
+      },
+      "causal_logic": {
+        "danger_origin": "Floating lamp frames tethered to a warm trench. An unlit raft loses the buoyancy provided by the luminous plankton.",
+        "rule_protection": "Move to the buoy before your last lamp dims. This keeps you outside the failure described here: The dark raft sinks with everything tied to it.",
+        "failure_consequence": "The dark raft sinks with everything tied to it.",
+        "cost_origin": "The lamps consume your shelter timbers as fuel; your raft becomes smaller every week.",
+        "reason_to_choose": "You gather fish that cluster beneath the colony lamps. You sleep in the central buoy basket."
+      }
+    },
+    "narration": [
+      "The lamps keep your raft afloat.",
+      "Fish gather beneath them for food.",
+      "Your shelter feeds the lamp furnace.",
+      "Reach the buoy before your last light dims."
+    ]
+  },
+  {
+    "concept": {
+      "candidate_id": "fixture",
+      "title": "WARM TRANSFER",
+      "premise": "Your home is the village district-heating exchange.",
+      "surface_attraction": "You have a place to rest among kitchen windows surrounding a public radiator court.",
+      "resource_situation": "Neighbors trade soup for repaired heating pipes.",
+      "safe_sleeping": "You sleep beside your assigned radiator.",
+      "inhabitants": "Every household lends heat to the next one in the row.",
+      "primary_danger": "A broken return pipe draws all nearby warmth into an empty house.",
+      "danger_type": "warm transfer hazard",
+      "critical_rule": "Turn off the return valve when the empty house gets warm.",
+      "rule_consequence": "Your room freezes while its boiler continues burning.",
+      "escape": "Every maintained route stays within this system.",
+      "long_term_drawback": "Repairing the system requires burning one piece of your household furniture each day.",
+      "long_term_cost_type": "warm transfer permanent bargain",
+      "mundane_detail": "Neighbors trade soup for repaired heating pipes.",
+      "unanswered_mystery": "Who lights the stove in the empty house?",
+      "visual_hook": "a warm chair pressed against an iced window",
+      "severity": 6,
+      "specific_setting": "village district-heating exchange",
+      "resource_problem": "Neighbors trade soup for repaired heating pipes.",
+      "central_mechanic": "Turn off the return valve when the empty house gets warm.",
+      "emotional_mechanic": "Repairing the system requires burning one piece of your household furniture each day.",
+      "architecture_style": "kitchen windows surrounding a public radiator court",
+      "dominant_material": "radiator cream surfaces",
+      "time_of_day": "late night",
+      "weather": "cold still air",
+      "anomaly": "Frost forms only on the inside of lit windows.",
+      "palette": [
+        "radiator cream",
+        "ember red",
+        "frost cyan"
+      ],
+      "palette_reason": "The materials and working lights in kitchen windows surrounding a public radiator court supply these colors.",
+      "signature": {
+        "setting": "village district-heating exchange",
+        "danger": "A broken return pipe draws all nearby warmth into an empty house.",
+        "rule": "Turn off the return valve when the empty house gets warm.",
+        "cost": "Repairing the system requires burning one piece of your household furniture each day.",
+        "anomaly": "Frost forms only on the inside of lit windows.",
+        "inhabitants": "Every household lends heat to the next one in the row."
+      },
+      "causal_logic": {
+        "danger_origin": "Kitchen windows surrounding a public radiator court. A broken return pipe draws all nearby warmth into an empty house.",
+        "rule_protection": "Turn off the return valve when the empty house gets warm. This keeps you outside the failure described here: Your room freezes while its boiler continues burning.",
+        "failure_consequence": "Your room freezes while its boiler continues burning.",
+        "cost_origin": "Repairing the system requires burning one piece of your household furniture each day.",
+        "reason_to_choose": "Neighbors trade soup for repaired heating pipes. You sleep beside your assigned radiator."
+      }
+    },
+    "narration": [
+      "Your village shares one heating circuit.",
+      "Neighbors trade soup for pipe repairs.",
+      "An empty house steals warmth through its return valve.",
+      "Close it when that house gets warm."
+    ]
+  },
+  {
+    "concept": {
+      "candidate_id": "fixture",
+      "title": "HOME CREDIT",
+      "premise": "Your home is the housing cooperative key counter.",
+      "surface_attraction": "You have a place to rest among lived-in apartment stoops facing a little key kiosk.",
+      "resource_situation": "Dinner portions are issued for hours spent repairing other flats.",
+      "safe_sleeping": "You sleep in the flat whose key you hold.",
+      "inhabitants": "Residents queue every evening to exchange borrowed keys.",
+      "primary_danger": "Keys left outside the counter overnight lock their occupants into the walls.",
+      "danger_type": "home credit hazard",
+      "critical_rule": "Return your key before the kiosk shutter closes.",
+      "rule_consequence": "Your room seals around you and never receives air again.",
+      "escape": "Every maintained route stays within this system.",
+      "long_term_drawback": "Keys cannot be renewed, so you must move to a different flat every day forever.",
+      "long_term_cost_type": "home credit permanent bargain",
+      "mundane_detail": "Dinner portions are issued for hours spent repairing other flats.",
+      "unanswered_mystery": "Where does the kiosk store keys for flats that do not exist?",
+      "visual_hook": "a warm apartment key with one white tooth",
+      "severity": 6,
+      "specific_setting": "housing cooperative key counter",
+      "resource_problem": "Dinner portions are issued for hours spent repairing other flats.",
+      "central_mechanic": "Return your key before the kiosk shutter closes.",
+      "emotional_mechanic": "Keys cannot be renewed, so you must move to a different flat every day forever.",
+      "architecture_style": "lived-in apartment stoops facing a little key kiosk",
+      "dominant_material": "key brass surfaces",
+      "time_of_day": "late night",
+      "weather": "cold still air",
+      "anomaly": "Each returned key grows a fresh tooth by morning.",
+      "palette": [
+        "key brass",
+        "brick rose",
+        "curtain indigo"
+      ],
+      "palette_reason": "The materials and working lights in lived-in apartment stoops facing a little key kiosk supply these colors.",
+      "signature": {
+        "setting": "housing cooperative key counter",
+        "danger": "Keys left outside the counter overnight lock their occupants into the walls.",
+        "rule": "Return your key before the kiosk shutter closes.",
+        "cost": "Keys cannot be renewed, so you must move to a different flat every day forever.",
+        "anomaly": "Each returned key grows a fresh tooth by morning.",
+        "inhabitants": "Residents queue every evening to exchange borrowed keys."
+      },
+      "causal_logic": {
+        "danger_origin": "Lived-in apartment stoops facing a little key kiosk. Keys left outside the counter overnight lock their occupants into the walls.",
+        "rule_protection": "Return your key before the kiosk shutter closes. This keeps you outside the failure described here: Your room seals around you and never receives air again.",
+        "failure_consequence": "Your room seals around you and never receives air again.",
+        "cost_origin": "Keys cannot be renewed, so you must move to a different flat every day forever.",
+        "reason_to_choose": "Dinner portions are issued for hours spent repairing other flats. You sleep in the flat whose key you hold."
+      }
+    },
+    "narration": [
+      "You borrow an apartment each morning.",
+      "Repairs earn your evening meal.",
+      "You must move again tomorrow.",
+      "Return the key before the kiosk shutter closes."
+    ]
+  },
+  {
+    "concept": {
+      "candidate_id": "fixture",
+      "title": "LAST POST",
+      "premise": "Your home is the mountain postal dormitory.",
+      "surface_attraction": "You have a place to rest among warm sorting desks beneath a snow-covered cable route.",
+      "resource_situation": "Delivered letters can be exchanged for potatoes at occupied houses.",
+      "safe_sleeping": "You sleep in a locked sorting cage.",
+      "inhabitants": "The recipients offer food but cannot cross their own thresholds.",
+      "primary_danger": "Undelivered envelopes steadily attract snow into the dormitory.",
+      "danger_type": "last post hazard",
+      "critical_rule": "Deliver every envelope bearing your bunk number before dusk.",
+      "rule_consequence": "The accumulated snow crushes your sleeping cage.",
+      "escape": "Every maintained route stays within this system.",
+      "long_term_drawback": "Each completed route permanently adds another address farther up the mountain.",
+      "long_term_cost_type": "last post permanent bargain",
+      "mundane_detail": "Delivered letters can be exchanged for potatoes at occupied houses.",
+      "unanswered_mystery": "Who writes letters addressed to tomorrow\u2019s new houses?",
+      "visual_hook": "a stamped envelope leaking a little upward snow",
+      "severity": 6,
+      "specific_setting": "mountain postal dormitory",
+      "resource_problem": "Delivered letters can be exchanged for potatoes at occupied houses.",
+      "central_mechanic": "Deliver every envelope bearing your bunk number before dusk.",
+      "emotional_mechanic": "Each completed route permanently adds another address farther up the mountain.",
+      "architecture_style": "warm sorting desks beneath a snow-covered cable route",
+      "dominant_material": "postal blue surfaces",
+      "time_of_day": "late night",
+      "weather": "cold still air",
+      "anomaly": "Snow falls upward inside the mail sacks.",
+      "palette": [
+        "postal blue",
+        "potato gold",
+        "snow grey"
+      ],
+      "palette_reason": "The materials and working lights in warm sorting desks beneath a snow-covered cable route supply these colors.",
+      "signature": {
+        "setting": "mountain postal dormitory",
+        "danger": "Undelivered envelopes steadily attract snow into the dormitory.",
+        "rule": "Deliver every envelope bearing your bunk number before dusk.",
+        "cost": "Each completed route permanently adds another address farther up the mountain.",
+        "anomaly": "Snow falls upward inside the mail sacks.",
+        "inhabitants": "The recipients offer food but cannot cross their own thresholds."
+      },
+      "causal_logic": {
+        "danger_origin": "Warm sorting desks beneath a snow-covered cable route. Undelivered envelopes steadily attract snow into the dormitory.",
+        "rule_protection": "Deliver every envelope bearing your bunk number before dusk. This keeps you outside the failure described here: The accumulated snow crushes your sleeping cage.",
+        "failure_consequence": "The accumulated snow crushes your sleeping cage.",
+        "cost_origin": "Each completed route permanently adds another address farther up the mountain.",
+        "reason_to_choose": "Delivered letters can be exchanged for potatoes at occupied houses. You sleep in a locked sorting cage."
+      }
+    },
+    "narration": [
+      "Your bunk is in a postal depot.",
+      "Deliveries earn potatoes from the recipients.",
+      "Unopened letters bring snow into your bed.",
+      "Deliver your numbered envelopes before dusk."
+    ]
+  },
+  {
+    "concept": {
+      "candidate_id": "fixture",
+      "title": "PLUMB SOUTH",
+      "premise": "Your home is the gravity survey pit.",
+      "surface_attraction": "You have a place to rest among suspended survey platforms wrapped around a red plumb line.",
+      "resource_situation": "Root vegetables grow toward whichever wall is currently below you.",
+      "safe_sleeping": "You sleep clipped to the survey cable.",
+      "inhabitants": "Surveyors communicate by moving weights along the cable.",
+      "primary_danger": "The pit changes its downward direction when its central plumb line tilts.",
+      "danger_type": "plumb south hazard",
+      "critical_rule": "Clip your belt to the survey cable before the plumb line moves.",
+      "rule_consequence": "You fall into the newly downward wall.",
+      "escape": "Every maintained route stays within this system.",
+      "long_term_drawback": "Every gravity change pulls the platform farther from the food-bearing walls.",
+      "long_term_cost_type": "plumb south permanent bargain",
+      "mundane_detail": "Root vegetables grow toward whichever wall is currently below you.",
+      "unanswered_mystery": "What pulls the plumb line when all the weights are still?",
+      "visual_hook": "a red plumb line stretched horizontally above a deep pit",
+      "severity": 7,
+      "specific_setting": "gravity survey pit",
+      "resource_problem": "Root vegetables grow toward whichever wall is currently below you.",
+      "central_mechanic": "Clip your belt to the survey cable before the plumb line moves.",
+      "emotional_mechanic": "Every gravity change pulls the platform farther from the food-bearing walls.",
+      "architecture_style": "suspended survey platforms wrapped around a red plumb line",
+      "dominant_material": "survey red surfaces",
+      "time_of_day": "late night",
+      "weather": "cold still air",
+      "anomaly": "A hanging weight points sideways while loose dust falls normally.",
+      "palette": [
+        "survey red",
+        "limestone beige",
+        "cable black"
+      ],
+      "palette_reason": "The materials and working lights in suspended survey platforms wrapped around a red plumb line supply these colors.",
+      "signature": {
+        "setting": "gravity survey pit",
+        "danger": "The pit changes its downward direction when its central plumb line tilts.",
+        "rule": "Clip your belt to the survey cable before the plumb line moves.",
+        "cost": "Every gravity change pulls the platform farther from the food-bearing walls.",
+        "anomaly": "A hanging weight points sideways while loose dust falls normally.",
+        "inhabitants": "Surveyors communicate by moving weights along the cable."
+      },
+      "causal_logic": {
+        "danger_origin": "Suspended survey platforms wrapped around a red plumb line. The pit changes its downward direction when its central plumb line tilts.",
+        "rule_protection": "Clip your belt to the survey cable before the plumb line moves. This keeps you outside the failure described here: You fall into the newly downward wall.",
+        "failure_consequence": "You fall into the newly downward wall.",
+        "cost_origin": "Every gravity change pulls the platform farther from the food-bearing walls.",
+        "reason_to_choose": "Root vegetables grow toward whichever wall is currently below you. You sleep clipped to the survey cable."
+      }
+    },
+    "narration": [
+      "Gravity changes direction inside your survey pit.",
+      "Vegetables grow on the lower wall.",
+      "You sleep clipped to the cable.",
+      "Fasten your belt whenever the plumb line moves."
+    ]
+  },
+  {
+    "concept": {
+      "candidate_id": "fixture",
+      "title": "PAPER MASS",
+      "premise": "Your home is the map-weight calibration shed.",
+      "surface_attraction": "You have a place to rest among large paper maps stretched across scales over a pale gulf.",
+      "resource_situation": "You trade corrected coastlines for dried fruit from other cartographers.",
+      "safe_sleeping": "You sleep on a map whose scale needle stays green.",
+      "inhabitants": "Cartographers live on separate suspended maps and exchange notes by kite.",
+      "primary_danger": "Erasing a coastline removes the supporting land beneath the corresponding section.",
+      "danger_type": "paper mass hazard",
+      "critical_rule": "Tie your harness before correcting any coastline.",
+      "rule_consequence": "The paper and the floor beneath you fall into the gulf.",
+      "escape": "Every maintained route stays within this system.",
+      "long_term_drawback": "Every correction removes a strip of your living platform permanently.",
+      "long_term_cost_type": "paper mass permanent bargain",
+      "mundane_detail": "You trade corrected coastlines for dried fruit from other cartographers.",
+      "unanswered_mystery": "Whose map includes the shed you are standing in?",
+      "visual_hook": "an eraser beside a missing triangle of floor",
+      "severity": 7,
+      "specific_setting": "map-weight calibration shed",
+      "resource_problem": "You trade corrected coastlines for dried fruit from other cartographers.",
+      "central_mechanic": "Tie your harness before correcting any coastline.",
+      "emotional_mechanic": "Every correction removes a strip of your living platform permanently.",
+      "architecture_style": "large paper maps stretched across scales over a pale gulf",
+      "dominant_material": "ink violet surfaces",
+      "time_of_day": "late night",
+      "weather": "cold still air",
+      "anomaly": "A heavy paper map weighs less whenever its ink dries.",
+      "palette": [
+        "ink violet",
+        "paper ochre",
+        "scale green"
+      ],
+      "palette_reason": "The materials and working lights in large paper maps stretched across scales over a pale gulf supply these colors.",
+      "signature": {
+        "setting": "map-weight calibration shed",
+        "danger": "Erasing a coastline removes the supporting land beneath the corresponding section.",
+        "rule": "Tie your harness before correcting any coastline.",
+        "cost": "Every correction removes a strip of your living platform permanently.",
+        "anomaly": "A heavy paper map weighs less whenever its ink dries.",
+        "inhabitants": "Cartographers live on separate suspended maps and exchange notes by kite."
+      },
+      "causal_logic": {
+        "danger_origin": "Large paper maps stretched across scales over a pale gulf. Erasing a coastline removes the supporting land beneath the corresponding section.",
+        "rule_protection": "Tie your harness before correcting any coastline. This keeps you outside the failure described here: The paper and the floor beneath you fall into the gulf.",
+        "failure_consequence": "The paper and the floor beneath you fall into the gulf.",
+        "cost_origin": "Every correction removes a strip of your living platform permanently.",
+        "reason_to_choose": "You trade corrected coastlines for dried fruit from other cartographers. You sleep on a map whose scale needle stays green."
+      }
+    },
+    "narration": [
+      "Your home rests on a suspended map.",
+      "Correct coastlines to earn dried fruit.",
+      "Each correction removes part of the floor.",
+      "Tie your harness before using the eraser."
+    ]
+  },
+  {
+    "concept": {
+      "candidate_id": "fixture",
+      "title": "SOLID ECHO",
+      "premise": "Your home is the acoustic flood chamber.",
+      "surface_attraction": "You have a place to rest among ribbed listening booths overlooking a motionless sound basin.",
+      "resource_situation": "You grow mushrooms in the damp sound baffles.",
+      "safe_sleeping": "You sleep inside a padded listening booth.",
+      "inhabitants": "Several residents converse only by writing on the booths.",
+      "primary_danger": "Spoken words harden into objects that fall from the basin ceiling.",
+      "danger_type": "solid echo hazard",
+      "critical_rule": "Keep your mouth closed outside a padded booth.",
+      "rule_consequence": "Your words solidify above you and fall with their full weight.",
+      "escape": "Every maintained route stays within this system.",
+      "long_term_drawback": "Every accidental noise permanently fills more walking space with solid sound.",
+      "long_term_cost_type": "solid echo permanent bargain",
+      "mundane_detail": "You grow mushrooms in the damp sound baffles.",
+      "unanswered_mystery": "Why does the basin contain objects shaped like words nobody has spoken?",
+      "visual_hook": "a stone-shaped syllable suspended above an empty chair",
+      "severity": 7,
+      "specific_setting": "acoustic flood chamber",
+      "resource_problem": "You grow mushrooms in the damp sound baffles.",
+      "central_mechanic": "Keep your mouth closed outside a padded booth.",
+      "emotional_mechanic": "Every accidental noise permanently fills more walking space with solid sound.",
+      "architecture_style": "ribbed listening booths overlooking a motionless sound basin",
+      "dominant_material": "baffle charcoal surfaces",
+      "time_of_day": "late night",
+      "weather": "cold still air",
+      "anomaly": "An unfinished spoken syllable hangs above the basin like a stone.",
+      "palette": [
+        "baffle charcoal",
+        "fungus ivory",
+        "signal turquoise"
+      ],
+      "palette_reason": "The materials and working lights in ribbed listening booths overlooking a motionless sound basin supply these colors.",
+      "signature": {
+        "setting": "acoustic flood chamber",
+        "danger": "Spoken words harden into objects that fall from the basin ceiling.",
+        "rule": "Keep your mouth closed outside a padded booth.",
+        "cost": "Every accidental noise permanently fills more walking space with solid sound.",
+        "anomaly": "An unfinished spoken syllable hangs above the basin like a stone.",
+        "inhabitants": "Several residents converse only by writing on the booths."
+      },
+      "causal_logic": {
+        "danger_origin": "Ribbed listening booths overlooking a motionless sound basin. Spoken words harden into objects that fall from the basin ceiling.",
+        "rule_protection": "Keep your mouth closed outside a padded booth. This keeps you outside the failure described here: Your words solidify above you and fall with their full weight.",
+        "failure_consequence": "Your words solidify above you and fall with their full weight.",
+        "cost_origin": "Every accidental noise permanently fills more walking space with solid sound.",
+        "reason_to_choose": "You grow mushrooms in the damp sound baffles. You sleep inside a padded listening booth."
+      }
+    },
+    "narration": [
+      "Spoken words become falling objects here.",
+      "Mushrooms grow inside the sound baffles.",
+      "You can sleep in padded booths.",
+      "Outside them, keep your mouth completely closed."
+    ]
+  },
+  {
+    "concept": {
+      "candidate_id": "fixture",
+      "title": "CINDER SHARE",
+      "premise": "Your home is the walking charcoal kiln settlement.",
+      "surface_attraction": "You have a place to rest among brick sleeping cells built inside a slowly turning kiln ring.",
+      "resource_situation": "Shift workers bake roots in the cooler ash channels.",
+      "safe_sleeping": "You sleep in the cell opposite the active fire.",
+      "inhabitants": "Ash-coated workers exchange shift tokens without removing their masks.",
+      "primary_danger": "The fire moves one cell clockwise whenever a shift token burns.",
+      "danger_type": "cinder share hazard",
+      "critical_rule": "Move your bedding when the next shift token begins to smoke.",
+      "rule_consequence": "The kiln fires your sleeping cell with you inside.",
+      "escape": "Every maintained route stays within this system.",
+      "long_term_drawback": "The kiln requires one shared living cell to be bricked shut as fuel every month.",
+      "long_term_cost_type": "cinder share permanent bargain",
+      "mundane_detail": "Shift workers bake roots in the cooler ash channels.",
+      "unanswered_mystery": "Who adds fresh shift tokens while every worker sleeps?",
+      "visual_hook": "a smoking shift token beside a folded blanket",
+      "severity": 8,
+      "specific_setting": "walking charcoal kiln settlement",
+      "resource_problem": "Shift workers bake roots in the cooler ash channels.",
+      "central_mechanic": "Move your bedding when the next shift token begins to smoke.",
+      "emotional_mechanic": "The kiln requires one shared living cell to be bricked shut as fuel every month.",
+      "architecture_style": "brick sleeping cells built inside a slowly turning kiln ring",
+      "dominant_material": "cinder grey surfaces",
+      "time_of_day": "late night",
+      "weather": "cold still air",
+      "anomaly": "The kiln casts its shadow in the direction of its flames.",
+      "palette": [
+        "cinder grey",
+        "kiln orange",
+        "mask cobalt"
+      ],
+      "palette_reason": "The materials and working lights in brick sleeping cells built inside a slowly turning kiln ring supply these colors.",
+      "signature": {
+        "setting": "walking charcoal kiln settlement",
+        "danger": "The fire moves one cell clockwise whenever a shift token burns.",
+        "rule": "Move your bedding when the next shift token begins to smoke.",
+        "cost": "The kiln requires one shared living cell to be bricked shut as fuel every month.",
+        "anomaly": "The kiln casts its shadow in the direction of its flames.",
+        "inhabitants": "Ash-coated workers exchange shift tokens without removing their masks."
+      },
+      "causal_logic": {
+        "danger_origin": "Brick sleeping cells built inside a slowly turning kiln ring. The fire moves one cell clockwise whenever a shift token burns.",
+        "rule_protection": "Move your bedding when the next shift token begins to smoke. This keeps you outside the failure described here: The kiln fires your sleeping cell with you inside.",
+        "failure_consequence": "The kiln fires your sleeping cell with you inside.",
+        "cost_origin": "The kiln requires one shared living cell to be bricked shut as fuel every month.",
+        "reason_to_choose": "Shift workers bake roots in the cooler ash channels. You sleep in the cell opposite the active fire."
+      }
+    },
+    "narration": [
+      "You sleep inside a rotating charcoal kiln.",
+      "Roots cook in the cooler ash channels.",
+      "The fire advances when a shift token burns.",
+      "Move your bedding when yours smokes."
+    ]
+  },
+  {
+    "concept": {
+      "candidate_id": "fixture",
+      "title": "THREAD LIMIT",
+      "premise": "Your home is the load-bearing textile mill.",
+      "surface_attraction": "You have a place to rest among narrow bunks hanging from the mill\u2019s unfinished fabric.",
+      "resource_situation": "You trade woven cloth for lentils at the loading scale.",
+      "safe_sleeping": "You sleep in a sling attached to uncut cloth.",
+      "inhabitants": "Weavers work in pairs because nobody can watch both tension gauges.",
+      "primary_danger": "A snapped loom thread releases the load carried by its corresponding floor beam.",
+      "danger_type": "thread limit hazard",
+      "critical_rule": "Stop your loom when either tension gauge turns white.",
+      "rule_consequence": "The beam over your bunk falls through the suspended floor.",
+      "escape": "Every maintained route stays within this system.",
+      "long_term_drawback": "Each repaired thread shortens the cloth supporting your home, lowering it toward the gears.",
+      "long_term_cost_type": "thread limit permanent bargain",
+      "mundane_detail": "You trade woven cloth for lentils at the loading scale.",
+      "unanswered_mystery": "Why are some floor beams tied to looms in rooms nobody can enter?",
+      "visual_hook": "a white tension gauge reflected in a hanging bunk",
+      "severity": 8,
+      "specific_setting": "load-bearing textile mill",
+      "resource_problem": "You trade woven cloth for lentils at the loading scale.",
+      "central_mechanic": "Stop your loom when either tension gauge turns white.",
+      "emotional_mechanic": "Each repaired thread shortens the cloth supporting your home, lowering it toward the gears.",
+      "architecture_style": "narrow bunks hanging from the mill\u2019s unfinished fabric",
+      "dominant_material": "loom teal surfaces",
+      "time_of_day": "late night",
+      "weather": "cold still air",
+      "anomaly": "A single thread casts the shadow of a heavy girder.",
+      "palette": [
+        "loom teal",
+        "linen tan",
+        "iron maroon"
+      ],
+      "palette_reason": "The materials and working lights in narrow bunks hanging from the mill\u2019s unfinished fabric supply these colors.",
+      "signature": {
+        "setting": "load-bearing textile mill",
+        "danger": "A snapped loom thread releases the load carried by its corresponding floor beam.",
+        "rule": "Stop your loom when either tension gauge turns white.",
+        "cost": "Each repaired thread shortens the cloth supporting your home, lowering it toward the gears.",
+        "anomaly": "A single thread casts the shadow of a heavy girder.",
+        "inhabitants": "Weavers work in pairs because nobody can watch both tension gauges."
+      },
+      "causal_logic": {
+        "danger_origin": "Narrow bunks hanging from the mill\u2019s unfinished fabric. A snapped loom thread releases the load carried by its corresponding floor beam.",
+        "rule_protection": "Stop your loom when either tension gauge turns white. This keeps you outside the failure described here: The beam over your bunk falls through the suspended floor.",
+        "failure_consequence": "The beam over your bunk falls through the suspended floor.",
+        "cost_origin": "Each repaired thread shortens the cloth supporting your home, lowering it toward the gears.",
+        "reason_to_choose": "You trade woven cloth for lentils at the loading scale. You sleep in a sling attached to uncut cloth."
+      }
+    },
+    "narration": [
+      "Your home hangs from unfinished cloth.",
+      "Weaving earns lentils from the loading scale.",
+      "Snapped threads bring down floor beams.",
+      "Stop when either tension gauge turns white."
+    ]
+  },
+  {
+    "concept": {
+      "candidate_id": "fixture",
+      "title": "LOWER TEETH",
+      "premise": "Your home is the quarry jaw-lift shelter.",
+      "surface_attraction": "You have a place to rest among metal sleeping ledges inside a giant stone crushing lift.",
+      "resource_situation": "You collect edible roots exposed by the lift\u2019s climbing teeth.",
+      "safe_sleeping": "You sleep on a ledge that clears the marked jaw line.",
+      "inhabitants": "Other climbers signal safe ledges by tapping their tools.",
+      "primary_danger": "The lift closes its stone jaws whenever the climbing teeth stop moving.",
+      "danger_type": "lower teeth hazard",
+      "critical_rule": "Climb above the painted jaw line before the teeth stop.",
+      "rule_consequence": "The jaws close across the lower sleeping ledges.",
+      "escape": "Every maintained route stays within this system.",
+      "long_term_drawback": "The painted safety line rises after every closure, forcing you permanently higher.",
+      "long_term_cost_type": "lower teeth permanent bargain",
+      "mundane_detail": "You collect edible roots exposed by the lift\u2019s climbing teeth.",
+      "unanswered_mystery": "Who repaints the line while the jaws are closed?",
+      "visual_hook": "a painted safety line above a bed carved into stone",
+      "severity": 8,
+      "specific_setting": "quarry jaw-lift shelter",
+      "resource_problem": "You collect edible roots exposed by the lift\u2019s climbing teeth.",
+      "central_mechanic": "Climb above the painted jaw line before the teeth stop.",
+      "emotional_mechanic": "The painted safety line rises after every closure, forcing you permanently higher.",
+      "architecture_style": "metal sleeping ledges inside a giant stone crushing lift",
+      "dominant_material": "quarry ochre surfaces",
+      "time_of_day": "late night",
+      "weather": "cold still air",
+      "anomaly": "The quarry teeth leave bite marks in empty air.",
+      "palette": [
+        "quarry ochre",
+        "paint magenta",
+        "tooth silver"
+      ],
+      "palette_reason": "The materials and working lights in metal sleeping ledges inside a giant stone crushing lift supply these colors.",
+      "signature": {
+        "setting": "quarry jaw-lift shelter",
+        "danger": "The lift closes its stone jaws whenever the climbing teeth stop moving.",
+        "rule": "Climb above the painted jaw line before the teeth stop.",
+        "cost": "The painted safety line rises after every closure, forcing you permanently higher.",
+        "anomaly": "The quarry teeth leave bite marks in empty air.",
+        "inhabitants": "Other climbers signal safe ledges by tapping their tools."
+      },
+      "causal_logic": {
+        "danger_origin": "Metal sleeping ledges inside a giant stone crushing lift. The lift closes its stone jaws whenever the climbing teeth stop moving.",
+        "rule_protection": "Climb above the painted jaw line before the teeth stop. This keeps you outside the failure described here: The jaws close across the lower sleeping ledges.",
+        "failure_consequence": "The jaws close across the lower sleeping ledges.",
+        "cost_origin": "The painted safety line rises after every closure, forcing you permanently higher.",
+        "reason_to_choose": "You collect edible roots exposed by the lift\u2019s climbing teeth. You sleep on a ledge that clears the marked jaw line."
+      }
+    },
+    "narration": [
+      "Your shelter sits inside a quarry lift.",
+      "Roots grow between its climbing teeth.",
+      "The jaws close whenever the teeth stop.",
+      "Climb above the painted line first."
+    ]
+  }
+]

@@ -118,6 +118,16 @@ class SaveGame(SaveGameConcept):
     artifacts: dict[str, Artifact] = Field(default_factory=dict)
 
 
+class StoryGeneration(Model):
+    """Optional provenance for the separately checkpointed survival-story workflow."""
+
+    provider: Text
+    model: Text
+    templates: tuple[TemplateReference, ...]
+    state: Artifact
+    review: Artifact
+
+
 class Reel(Model):
     schema_version: Literal["1.0"] = "1.0"
     run_id: RunId
@@ -128,6 +138,7 @@ class Reel(Model):
     saves: Annotated[tuple[SaveGame, ...], Field(min_length=4, max_length=4)]
     status: StageStatus = StageStatus.PENDING
     stages: dict[str, StageState] = Field(default_factory=dict)
+    story_generation: StoryGeneration | None = None
 
     @field_validator("saves")
     @classmethod

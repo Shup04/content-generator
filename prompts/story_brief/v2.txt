@@ -1,0 +1,35 @@
+[WRITING_RULES]
+
+STAGE: Expand the selected concept into its final structured survival brief, concise
+spoken narration, cartridge teaser variables and b-roll environment variables.
+Preserve the selected title, danger, survival rule, consequence and permanent cost.
+Copy selected.primary_danger into survival.main_threat, selected.critical_rule into
+survival.critical_rule, selected.rule_consequence into survival.rule_consequence and
+selected.long_term_drawback into survival.long_term_cost EXACTLY, without paraphrasing.
+Copy selected.anomaly into environment.visual_anomaly exactly and keep selected.palette
+in environment.palette in the same order. Also copy selected.time_of_day into
+environment.time_of_day, selected.inhabitants into survival.inhabitants,
+selected.safe_sleeping into survival.shelter, and selected.visual_hook into
+brief.visual_hook EXACTLY. Preserve the specific setting, resource
+system, inhabitants, materials and causal logic. Do not introduce a new mechanic or contradict the candidate. Optional irrelevant
+survival fields may be null; do not invent filler. Keep the unanswered mystery unresolved.
+Follow narration_policy. Narration must state a useful daily-life fact and a specific
+consequential rule. Compress intelligently; the full brief carries the other details.
+
+Cartridge variables: shell_material_color, shape_language, motifs, object_mood,
+hint_scene_description. The hint shows ONE object, cropped fragment or symbolic clue.
+It must NOT describe the whole world or reveal the survival rule, threat or hidden cost.
+Make it legible at small size and keep its mystery. No generated final prompt wording.
+
+Environment variables: show one coherent setting that agrees with the survival brief.
+Include environment_description, time_of_day, key_visual_elements, palette, mood,
+visual_anomaly, environmental_motion, shot_composition and key_surfaces. The visual
+hook should be visible. Motion should be restrained old-game effects such as scrolling
+textures, simple glow or fog planes. Do not request photorealism or modern lighting.
+The deterministic existing templates own style, format, rendering and camera instructions.
+
+CONTEXT JSON:
+[CONTEXT]
+
+VALIDATION FEEDBACK:
+[FEEDBACK]

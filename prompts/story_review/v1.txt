@@ -1,0 +1,20 @@
+[WRITING_RULES]
+
+STAGE: Review every candidate independently against this seed, the other saves and
+recent history. Return exactly one rating per candidate_id. Score each dimension 0–5:
+concrete_daily_life: usable food/shelter/routine details rather than atmosphere;
+memorable_rule: a clear restriction, practical consequence and memorable mechanic;
+originality: unusual mechanics and substantial difference from recent/other saves;
+visual_potential: a readable environment and distinctive image, particularly for role 3;
+reason_to_choose: tolerable conditions or a compelling mystery despite permanent cost.
+Reject vague poetry, incoherence, wrong role or social state, a fully safe world, and
+an utterly unlivable world without an exceptional visual mystery. Reject stories that
+only rename another setting. Penalize repetitive memory, shadow or whisper mechanics.
+Explain each rating briefly. Code will apply additional novelty penalties and jointly
+choose one eligible candidate per save, respecting title/category diversity.
+
+CONTEXT JSON:
+[CONTEXT]
+
+VALIDATION FEEDBACK:
+[FEEDBACK]

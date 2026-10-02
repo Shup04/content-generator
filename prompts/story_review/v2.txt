@@ -1,0 +1,38 @@
+[WRITING_RULES]
+
+STAGE: Independently evaluate every candidate. Return one rating per candidate_id.
+Use 0–1 scores for novelty, causal_coherence, survival_specificity, visual_hook,
+choice_appeal, mystery, non_poetic_writing and overall. Do not inflate scores to
+satisfy the thresholds in settings.novelty. A rejected set is an acceptable result;
+new concepts will be generated instead of pressuring you to accept weak concepts.
+
+NOVELTY: Compare the actual mechanisms to occupied history and the current reel.
+A new title, underground location, or differently colored room does not make an
+otherwise identical ration/routine/inhabitant system new. Penalize title patterns.
+CAUSAL COHERENCE: Independently answer all five causal questions. Verify the author's
+causal_logic, rather than taking it on trust. Setting, resource, threat, protection,
+consequence and cost must describe a functioning system. An unrelated weather hazard
+and unrelated sleep penalty score poorly, however colorful the setting.
+SURVIVAL SPECIFICITY: Are supplies, shelter and a sustainable daily routine concrete?
+VISUAL HOOK: Is there a strong, legible image and a teaser that does not spoil the world?
+CHOICE APPEAL: Is a believable life possible despite a meaningful permanent drawback?
+MYSTERY: Is there a specific unanswered question, not just withheld practical facts?
+NON-POETIC WRITING: Plain practical facts and spoken English rather than vague horror prose.
+
+Set nearest_history_id to the ID of the closest recent summary, or null if none is
+meaningfully similar. Score history_similarity 0–1 for structural equivalence: 0 is
+unrelated, 0.5 shares some tropes, 0.8 is substantially the same system with cosmetic
+changes, 1 is the same concept. Similarity must concern several important dimensions,
+not just a shared setting family. Use a real supplied history_id. With no history,
+return null and 0. Explain the comparison and causal weaknesses in rationale.
+Set rejection_reason when incoherent, derivative, safe-perfect, unlivable without a
+compelling mystery, or otherwise unsuitable. Code applies hard gates independently.
+
+RECENT CREATIVE HISTORY — occupied territory, not inspiration
+[HISTORY]
+
+CANDIDATES, CURRENT REEL AND CONFIGURATION
+[CONTEXT]
+
+VALIDATION FEEDBACK
+[FEEDBACK]

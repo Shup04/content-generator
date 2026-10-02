@@ -16,6 +16,9 @@ from save_reel.stages import BrollStillPromptStage, LabelPromptStage
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="save-reel", description="Create Choose Your Save reels")
     commands = parser.add_subparsers(dest="command", required=True)
+    from save_reel.story_cli import add_story_commands
+
+    add_story_commands(commands)
     create = commands.add_parser("create", help="Prepare label and B-roll prompts for four games")
     create.add_argument("--theme", default="forgotten worlds", help="Creative theme for the reel")
     create.add_argument("--provider", choices=("mock",), default="mock")
@@ -140,6 +143,15 @@ def main(argv: Sequence[str] | None = None) -> int:
     # Provider libraries may otherwise log signed download URLs at INFO.
     logging.getLogger("httpx").setLevel(logging.WARNING)
     try:
+        if args.command in {"generate-concepts", "resume-concepts", "regenerate-concepts",
+                            "review-concepts", "import-story-history"}:
+            from save_reel.story_cli import run_story_command
+
+            try:
+                run_story_command(args)
+            except RuntimeError as exc:
+                raise ValueError(str(exc)) from None
+            return 0
         if args.command in {"narrate", "resume-narration"}:
             try:
                 from save_reel.narration_cli import run_narration_command

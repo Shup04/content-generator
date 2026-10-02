@@ -63,6 +63,13 @@ class CreatePipeline:
         run_id: str | None = None,
     ) -> Reel:
         store = RunStore.create(runs_dir, run_id)
+        return self.create_in_store(request, store)
+
+    def create_in_store(self, request: ConceptRequest, store: RunStore) -> Reel:
+        """Compile a prepared concept in an existing, exclusively owned run directory.
+
+        Story resume uses this with cached concepts; no media stage is added here.
+        """
         with run_logging(store) as logger:
             logger.info(
                 "Created run %s with concept provider %s", store.run_dir.name, self.provider.name
