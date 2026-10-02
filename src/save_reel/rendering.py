@@ -13,7 +13,10 @@ from pathlib import Path
 
 from save_reel.broll import BrollPipeline
 from save_reel.cartridge import CartridgePipeline
+from save_reel.ffmpeg_text import draw_text
 from save_reel.models import Artifact, StageState, StageStatus, utc_now
+from save_reel.opener import opener_filter, opener_inputs, prepare_opener
+from save_reel.opener_style import INTRO_SCRIPT
 from save_reel.pipeline import run_logging
 from save_reel.providers.media import MediaError
 from save_reel.render_models import RenderCollection, RenderRun, RenderSettings, build_timeline
@@ -74,94 +77,8 @@ def write_countdown_audio(path: Path, settings: RenderSettings, duration: float)
         output.writeframes(samples.tobytes())
 
 
-def draw_text(
-    file: str, size: int, x: str, y: str, *, color: str = "0xeaf3ff", enable: str | None = None
-) -> str:
-    # file/font paths are generated ASCII names; user text is never filter syntax.
-    result = (
-        f"drawtext=fontfile=font.ttf:textfile=text/{file}.txt:expansion=none:"
-        f"fontsize={size}:fontcolor={color}:x='{x}':y='{y}'"
-    )
-    if enable is not None:
-        result += f":enable='{enable}'"
-    return result
-
-
 def intro_filter(settings: RenderSettings) -> str:
-    s = settings.width / 1080
-
-    def px(n: int) -> int:
-        return round(n * s)
-
-    duration = settings.intro_seconds + settings.countdown_seconds
-    graph = [
-        f"color=c=0x{settings.background_color[1:]}:s={settings.width}x{settings.height}:"
-        f"r={settings.fps}:d={duration},format=rgba[base]"
-    ]
-    previous = "base"
-    for i, bob in enumerate(settings.bobbing):
-        x = px(30 if i % 2 == 0 else 558)
-        y = px(635 if i < 2 else 1055)
-        graph.append(
-            f"[{i}:v]scale={px(492)}:{px(328)}:flags=lanczos,format=rgba,"
-            f"setsar=1,setpts=PTS-STARTPTS[card{i}]"
-        )
-        graph.append(
-            f"[{previous}][card{i}]overlay=x={x}:"
-            f"y='{y}+sin(t*{bob.speed}+{bob.phase})*{bob.amplitude * s}':"
-            f"eval=frame:alpha=straight:format=auto:shortest=1[grid{i}]"
-        )
-        previous = f"grid{i}"
-    text_filters = [draw_text("heading", px(68), "(w-text_w)/2", str(px(155)))]
-    for i in range(len(settings.intro_lines)):
-        text_filters.append(
-            draw_text(f"intro_{i}", px(40), "(w-text_w)/2", str(px(300 + 57 * i)), color="0xbccce3")
-        )
-    for i in range(4):
-        center = px(276 if i % 2 == 0 else 804)
-        text_filters.append(
-            draw_text(
-                f"save_{i + 1:02}",
-                px(32),
-                f"{center}-text_w/2",
-                str(px(1000 if i < 2 else 1420)),
-                color="0xbccce3",
-            )
-        )
-    text_filters.append(
-        draw_text(
-            "hold",
-            px(30),
-            "(w-text_w)/2",
-            str(px(1610)),
-            color="0x94a9c9",
-            enable=f"lt(t,{settings.intro_seconds})",
-        )
-    )
-    text_filters.append(
-        draw_text(
-            "countdown_caption",
-            px(28),
-            "(w-text_w)/2",
-            str(px(1535)),
-            color="0xbccce3",
-            enable=f"gte(t,{settings.intro_seconds})",
-        )
-    )
-    for index in range(settings.countdown_seconds):
-        start = settings.intro_seconds + index
-        text_filters.append(
-            draw_text(
-                f"count_{settings.countdown_seconds - index}",
-                px(112),
-                "(w-text_w)/2",
-                str(px(1590)),
-                color="0xbbece3",
-                enable=f"gte(t,{start})*lt(t,{start + 1})",
-            )
-        )
-    graph.append(f"[{previous}]" + ",".join(text_filters) + ",format=yuv420p,setsar=1[outv]")
-    return ";\n".join(graph) + "\n"
+    return opener_filter(settings)
 
 
 def clip_filter(settings: RenderSettings, number: int, title: str) -> str:
@@ -298,7 +215,7 @@ class ReelRenderer:
             collection=collection,
             settings=settings,
             timeline=build_timeline(collection, settings),
-            narration_text=" ".join(settings.intro_lines),
+            narration_text=INTRO_SCRIPT,
             tool_versions=versions,
         )
         self._save(store, run)
@@ -315,12 +232,8 @@ class ReelRenderer:
                         "image/png" if relative.endswith(".png") else "video/mp4",
                     )
                 run.artifacts["font"] = store.write_bytes("font.ttf", font.read_bytes(), "font/ttf")
-                texts = {
-                    "heading": settings.heading,
-                    "hold": "ONE SAVE. ONE NEW LIFE.",
-                    "countdown_caption": "MAKE YOUR CHOICE",
-                }
-                texts.update({f"intro_{i}": text for i, text in enumerate(settings.intro_lines)})
+                run.artifacts.update(prepare_opener(store, settings))
+                texts = {"countdown_caption": "MAKE YOUR CHOICE"}
                 for number, game in enumerate(collection.games, 1):
                     texts[f"save_{number:02}"] = f"SAVE {number:02}"
                     texts[f"title_{number:02}"] = game.title
@@ -381,20 +294,7 @@ class ReelRenderer:
                     return relative
 
                 intro_duration = settings.intro_seconds + settings.countdown_seconds
-                intro_inputs = []
-                for number in range(1, 5):
-                    intro_inputs.extend(
-                        [
-                            "-loop",
-                            "1",
-                            "-framerate",
-                            str(settings.fps),
-                            "-t",
-                            str(intro_duration),
-                            "-i",
-                            f"inputs/save_{number:02}/cartridge.png",
-                        ]
-                    )
+                intro_inputs = opener_inputs(settings)
                 segments = [
                     encode_stage("intro", intro_inputs, intro_filter(settings), intro_duration)
                 ]

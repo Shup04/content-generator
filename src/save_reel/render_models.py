@@ -6,6 +6,7 @@ from typing import Annotated, Literal
 from pydantic import Field, model_validator
 
 from save_reel.models import Artifact, Model, RunId, StageState, StageStatus, Text, utc_now
+from save_reel.opener_style import OpenerStyle
 
 
 class RenderGame(Model):
@@ -35,12 +36,14 @@ class BobMotion(Model):
 
 
 class RenderSettings(Model):
+    opener: OpenerStyle = Field(default_factory=OpenerStyle)
     width: Annotated[int, Field(ge=180, le=2160)] = 1080
     height: Annotated[int, Field(ge=320, le=3840)] = 1920
     fps: Literal[24, 30, 60] = 24
     intro_seconds: Annotated[float, Field(gt=0, le=30, allow_inf_nan=False)] = 4
     countdown_seconds: Annotated[int, Field(ge=1, le=10)] = 5
     clip_seconds: Annotated[float, Field(gt=0, le=60, allow_inf_nan=False)] = 5
+    # Retained to load previous manifests; console UI reads only the opener tokens.
     background_color: Annotated[str, Field(pattern=r"^#[0-9a-fA-F]{6}$")] = "#0d152b"
     heading: Text = "CHOOSE YOUR SAVE"
     intro_lines: Annotated[tuple[Text, ...], Field(min_length=1, max_length=3)] = (

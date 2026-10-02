@@ -270,12 +270,14 @@ def test_real_render_cli_alpha_motion_order_and_sound(local_assets, monkeypatch)
     assert float(info["format"]["duration"]) == pytest.approx(5, abs=1 / 24)
     assert video["avg_frame_rate"] == "24/1"
 
-    first = frame(output, 0)
-    later = frame(output, 0.75)
+    opening = frame(output, 0)
+    assert all(pixel(opening, x, y)[0] < 30 for x, y in ((55, 160), (161, 245)))
+    first = frame(output, 1)
+    later = frame(output, 1.75)
     for x, y, rgb in zip((55, 161, 55, 161), (160, 160, 245, 245), colours, strict=True):
         assert pixel(first, x, y) == pytest.approx(rgb, abs=8)
     # Transparent magenta RGB must not appear outside the four visible rectangles.
-    assert pixel(first, 10, 135) == pytest.approx((13, 21, 43), abs=5)
+    assert pixel(first, 10, 135) == pytest.approx((4, 5, 8), abs=8)
 
     def red_top(data):
         return next(
@@ -286,7 +288,7 @@ def test_real_render_cli_alpha_motion_order_and_sound(local_assets, monkeypatch)
     for index, rgb in enumerate(colours):
         assert pixel(frame(output, 3.25 + index * 0.5), 108, 192) == pytest.approx(rgb, abs=8)
     # Countdown digits differ, while keeping the same grid on screen.
-    digits = [frame(output, t)[315 * 216 * 3 : 350 * 216 * 3] for t in (1.25, 2.25)]
+    digits = [frame(output, t)[60 * 216 * 3 : 95 * 216 * 3] for t in (1.25, 2.25)]
     assert digits[0] != digits[1]
 
     audio = subprocess.run(
