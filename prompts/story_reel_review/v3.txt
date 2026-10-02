@@ -1,0 +1,27 @@
+[WRITING_RULES]
+
+STAGE: Evaluate the selected set of four as a reel, not four isolated stories.
+Score environment, resource, threat, rule, inhabitants, cost, emotion, palette and
+overall from 0–1 for MATERIAL DIVERSITY. Different titles or different seed families
+are insufficient if the worlds all reduce to the same survival system.
+
+The roles should broadly offer attractive, nostalgic, inexplicable and ominous choices,
+but do not demand the same social structure, severity curve or deception every time.
+Look for renamed settings, repeated central mechanics, identical daily routines,
+functionally identical inhabitants, the same permanent bargain and color clustering.
+Shared loneliness is allowed; identical emotional bargains in all four are not.
+Reject a set in which all four worlds have no other residents, or all four use the
+same kind of unresponsive inhabitants or memory/identity mechanic.
+
+Report concrete issues with the affected save_ids, dimension and reason. Identify
+weakest_save_id when replacement would improve the set; otherwise use null. Favor
+replacing the least coherent, least novel or most redundant choice. Respect frozen
+saves: only recommend a mutable save as the replacement. Do not lower standards just
+because replacement is inconvenient. If every dimension meets the configured minimum,
+return no issues. A failed evaluation triggers bounded replacement and reevaluation.
+
+SELECTED WORLDS AND CONFIGURATION
+[CONTEXT]
+
+VALIDATION FEEDBACK
+[FEEDBACK]

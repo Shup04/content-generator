@@ -1,0 +1,45 @@
+NARRATION ONLY — THREE SECOND-PERSON TRAVELOGUES FROM ONE APPROVED WORLD.
+
+Write three distinct candidates, narration_1, narration_2, narration_3. Each is ONE
+flowing 40–60 word paragraph (or the supplied narration_policy word range), not
+separate spoken lines. Address the viewer as "you". Sound like someone calmly
+describing a bizarre place they know well. This is neither a survival checklist
+nor poetic horror. The world supplies the strangeness; ordinary sentences can be calm.
+
+Treat approved_facts as background material, not headings to cover. Choose just
+3–4 interesting facts for each candidate. Include 1–2 concrete sensory/environmental
+details and at least one ordinary activity you would spend time doing there.
+Sensory detail can establish what living here feels like without teaching a survival
+lesson. Let the visuals communicate everything else. No category-completion quota.
+Never mechanically cover food, water, shelter, inhabitants, danger and escape.
+
+Use at most ONE main danger/rule, optionally its consequence. A warning, protective
+action and consequence belonging to the same mechanism count as one main danger;
+do not slip in a second threat or unrelated rule. Zero dangers is allowed if the
+world and daily life already make an interesting travelogue. No required ominous ending.
+
+Write natural connected prose. Link ideas with ordinary transitions such as "and",
+"but", "while", "when", "so" and "after" when they fit. Vary sentence structure.
+Do not join a list of commands with "and" and call it a travelogue. Do not force a
+transition into every sentence. Avoid ornate language, AI clichés, standalone creepy
+observations, clever reveal lines, rhetorical endings and obligatory twists.
+Most sentences should describe living here, not warn the viewer about everything.
+
+Invent NO facts or mechanics. Ground sensory details and ordinary activities in the
+approved facts too. No invented colours, sounds, supplies, safe areas, schedules or
+causal links. Keep relevant qualifications when using a fact, but omit whole facts
+rather than cramming the entire system into 60 words. The title supplies no extra lore.
+
+For each candidate return its paragraph and review metadata:
+- facts: 3–4 distinct facts used, each with source (an approved_facts key) and quote
+  (a verbatim supporting excerpt from that fact). Do not bundle a checklist into a quote.
+- sensory_details: 1–2 verbatim excerpts FROM YOUR PARAGRAPH containing those details.
+- ordinary_activity: a verbatim excerpt FROM YOUR PARAGRAPH describing the activity.
+- main_danger_or_rule: the one mechanism used, or null. This is metadata, not extra prose.
+Generate alternative perspectives on this SAME spec, never alternative worlds.
+If previous_attempt exists, address its review issues without changing approved_facts.
+
+[CONTEXT]
+
+SCHEMA VALIDATION FEEDBACK
+[FEEDBACK]

@@ -1,0 +1,14 @@
+Write three different narrations for this Choose Your Save world, each one flowing
+second-person paragraph of 55–80 words (use word_range if different). Calmly describe
+what living there is like, as someone who knows the place well. Mix ordinary details
+and activities with at most one or two unsettling rules. Choose what is interesting;
+you do not need to cover every fact. Use natural connected speech, not a survival
+checklist, poetic horror, or a compulsory twist ending. Do not invent new mechanics.
+Return narration_1, narration_2 and narration_3, with only the spoken paragraphs.
+
+These two user-supplied reference scripts illustrate the voice. Their facts belong
+to their own worlds; do not borrow them for the new world.
+[EXAMPLES]
+
+[CONTEXT]
+[FEEDBACK]

@@ -22,15 +22,32 @@ from save_reel.story_models import (
 class MockStoryProvider:
     name = "mock"
 
-    def __init__(self, version="v2"):
+    def __init__(self, version="v3"):
         self.version = version
         self.model = f"mock-survival-{version}"
 
     def generate(self, *, stage, prompt, context, response_type):
+        if stage in (
+            "narration_description", "narration_prose_candidates", "narration_prose_candidate",
+            "narration_prose_selection",
+        ):
+            from save_reel.providers.mock_prose import generate_prose_fixture
+
+            return generate_prose_fixture(stage, context, response_type)
         if self.version == "v1":
             return LegacyMockStoryProvider().generate(
                 stage=stage, prompt=prompt, context=context, response_type=response_type
             )
+        if self.version == "v3" and stage in ("narration_candidates", "narration_selection"):
+            from save_reel.providers.mock_travelogue import generate_travelogue_fixture
+
+            return generate_travelogue_fixture(stage, context, response_type)
+        if self.version == "v3" and stage in (
+            "world_simulation", "world_review", "narration", "narration_review"
+        ):
+            from save_reel.providers.mock_simulation import generate_simulation_fixture
+
+            return generate_simulation_fixture(stage, context, response_type)
         fixtures = json.loads(
             files("save_reel.prompt_templates")
             .joinpath("story_fixtures", "v2.json")

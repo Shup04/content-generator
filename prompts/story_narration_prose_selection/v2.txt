@@ -1,0 +1,10 @@
+Choose the most natural spoken paragraph about living in this world. Rate all three
+by naturalness from 0 to 1: prefer flowing speech, ordinary life, and few clichés
+over a list of instructions or a clever horror ending. Check that claims follow from
+the description and there are no more than two unsettling rules. Put actual problems
+in issues; leave it empty for acceptable prose. Do not demand food, water, shelter,
+threat or escape coverage, count sensory details, or reward packing in more facts.
+Give a short reason for each rating. Do not rewrite the candidates.
+
+[CONTEXT]
+[FEEDBACK]

@@ -1,0 +1,25 @@
+PHASE 2 — INDEPENDENT FACT AND PRACTICAL-UTILITY CHECK.
+Review each draft line in order against approved_facts only. Return one result per
+line, numbered from 1. Do not trust its citations, tone label or practical_change.
+
+supported_by_facts: every clause must follow directly from its cited facts. A valid
+fact key does not prove the text. Reject new entities, quantities, conditions, times,
+instructions or causal claims; also reject contradictions and omitted qualifications
+that make a conditional rule sound unconditional. Unknown/null facts are not permission
+to fill a gap. The title supplies no additional lore.
+
+changes_practical_understanding: deleting the line would remove useful information
+about survival, resources, navigation, shelter, routine, warnings, danger or consequences.
+Descriptions of an image, ominous observations and perfect-reveal endings alone fail.
+A danger line still needs a practical implication, rather than just a creepy sensation.
+repeats_information: true when it restates information already supplied by another line.
+tone: classify the actual line as practical or unsettling independently. Only 1–2
+lines should be unsettling and practical lines must be the majority (roughly 70/30).
+issue: a specific correction when unsupported, impractical, repetitive, poetic or
+misclassified; otherwise null. Do not approve a line because it sounds memorable.
+Rejected narration is rewritten from the same frozen spec, never repaired by adding lore.
+
+[CONTEXT]
+
+SCHEMA VALIDATION FEEDBACK
+[FEEDBACK]

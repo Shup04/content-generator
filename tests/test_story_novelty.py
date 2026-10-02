@@ -21,11 +21,13 @@ from save_reel.story_models import (
     NoveltyPolicy,
     ReelIssue,
     StoryRun,
-    StorySettings,
     WorldCandidateRating,
     WorldCandidateReview,
     WorldCandidateSet,
     WorldConcept,
+)
+from save_reel.story_models import (
+    StorySettings as CurrentStorySettings,
 )
 from save_reel.story_novelty import assess_candidate, palette_key, reel_issues
 from save_reel.story_pipeline import StoryWorkflow
@@ -33,9 +35,19 @@ from save_reel.story_prompting import load_prompts, render_request
 from save_reel.story_seeds import load_catalog, make_seeds
 
 
+class StorySettings(CurrentStorySettings):
+    prompt_version: str = "v2"
+
+
+@pytest.fixture(autouse=True)
+def legacy_v2_defaults(monkeypatch):
+    monkeypatch.setattr("save_reel.story_pipeline.StorySettings", StorySettings)
+    monkeypatch.setattr("save_reel.story_cli.StorySettings", StorySettings)
+
+
 class SpyProvider(MockStoryProvider):
     def __init__(self):
-        super().__init__()
+        super().__init__(version="v2")
         self.calls = []
 
     def generate(self, **kwargs):
@@ -472,8 +484,11 @@ def test_unknown_semantic_history_match_is_invalid(generated):
     _, _, run, _ = generated
     review = run.saves[0].review.model_copy(deep=True)
     review.ratings[0].nearest_history_id = "invented-history-id"
-    with pytest.raises(ValueError, match="identify supplied history"):
+    with pytest.raises(ValueError, match="identify supplied history") as error:
         StoryWorkflow._check_world_review(run, run.saves[0], review)
+    assert "invented-history-id" in str(error.value)
+    assert "creative_history.recent_save_summaries" in str(error.value)
+    assert "current-reel save_id" in str(error.value)
 
 
 def test_hard_rejection_regenerates_a_fresh_set_and_retains_diagnostics(tmp_path):

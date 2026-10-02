@@ -1,0 +1,39 @@
+PHASE 2 — NARRATION FROM APPROVED WORLD FACTS ONLY.
+Write 4–6 short spoken lines, subject to the supplied narration_policy.
+The title is a label, not evidence about the world. approved_facts is the only
+source of factual claims. Do not invent, infer, embellish or strengthen facts.
+Do not invent times, quantities, supplies, safe places, people or consequences.
+Preserve every limiting condition and important qualification when paraphrasing.
+
+Most lines must explain how to live here. Target roughly 70% practical information
+and 30% danger/mystery, with only 1–2 unsettling lines and a practical majority.
+State how to obtain resources, where to sleep, how to navigate, what daily routine
+works, what warning to recognize, or what a rule/consequence means for survival.
+Do not describe an image unless that detail affects survival or daily life.
+Do not write poetry, creepy closing lines, rhetorical questions or a perfect reveal.
+There is no requirement to end with horror or to explain every mystery.
+If deleting a line changes nothing practical, remove or replace it. Each line must
+change understanding; do not restate the previous line in new wording.
+
+Bad: "That exit sign has no door."
+Bad: "The luggage belonged to people who stayed."
+Bad: "Each peach makes your legs heavier."
+Better, ONLY IF SUPPORTED by approved_facts:
+"Ignore the EXIT signs after midnight. They start appearing over walls that weren't doors during the day."
+"The bags under the tree are abandoned. Most of your clothes and canned food will come from them."
+"The orchard is your only reliable food source. Fruit picked after sunset causes fever, so gather enough before dark."
+These demonstrate practical utility. Never import their details into another world.
+
+Return structured lines with text, fact_refs, tone (practical or unsettling), and
+practical_change. fact_refs must name the approved fact keys that support EVERY
+claim in that line. practical_change briefly explains what the viewer learns to do
+or account for; it is review metadata, not spoken text. A decorative description
+does not become practical just because it cites an environment fact.
+Use direct plain English and "you" naturally. Follow word/line targets without filler.
+If previous_attempt exists, repair its unsupported or useless lines using these same
+approved facts. Do not revise the world to justify a line.
+
+[CONTEXT]
+
+SCHEMA VALIDATION FEEDBACK
+[FEEDBACK]

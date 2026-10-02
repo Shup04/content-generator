@@ -35,7 +35,8 @@ from save_reel.story_models import (
     WorldConcept,
     normalized,
 )
-from save_reel.story_prompting import load_prompts, render_request
+from save_reel.story_narration_models import TraveloguePolicy, TravelogueState
+from save_reel.story_prompting import load_prompts, load_travelogue_prompts, render_request
 from save_reel.story_seeds import make_seeds
 
 
@@ -66,6 +67,9 @@ class StoryWorkflow:
     ) -> StoryRun:
         settings = settings or StorySettings()
         templates = load_prompts(settings.prompt_version, prompts_dir)
+        travelogue = settings.travelogue if settings.prompt_version == "v3" else None
+        if travelogue:
+            templates.update(load_travelogue_prompts(travelogue.prompt_version, prompts_dir))
         history = self._history(runs_dir).recent(
             settings.recent_history_count
             if settings.prompt_version == "v1"
@@ -75,7 +79,7 @@ class StoryWorkflow:
         seeds, reference = make_seeds(number, settings, history)
         store = RunStore.create(runs_dir, run_id)
         run = StoryRun(
-            schema_version="1.0" if settings.prompt_version == "v1" else "2.0",
+            schema_version={"v1": "1.0", "v2": "2.0"}.get(settings.prompt_version, "3.0"),
             run_id=store.run_dir.name,
             request=request,
             provider=self.provider.name,
@@ -86,7 +90,9 @@ class StoryWorkflow:
             seed_catalog=reference,
             history=history,
             saves=tuple(
-                StorySave(save_id=sid, seed=seed) for sid, seed in zip(SAVE_IDS, seeds, strict=True)
+                StorySave(save_id=sid, seed=seed,
+                          travelogue=TravelogueState(policy=travelogue) if travelogue else None)
+                for sid, seed in zip(SAVE_IDS, seeds, strict=True)
             ),
         )
         self._save(run, store)
@@ -105,8 +111,16 @@ class StoryWorkflow:
         runs_dir: Path | None = None,
         run_id: str | None = None,
         random_seed: int | None = None,
+        narration_style: str | None = None,
     ) -> StoryRun:
         old = self.load(source)
+        if narration_style is not None and (
+            narration_style not in ("travelogue", "sol")
+            or scope != "narration" or old.schema_version != "3.0"
+        ):
+            raise ValueError(
+                "--narration-style requires --scope narration and a v3 world"
+            )
         if scope not in ("reel", "save", "candidates", "narration"):
             raise ValueError("unknown regeneration scope")
         if scope != "reel" and save_id not in SAVE_IDS:
@@ -129,15 +143,37 @@ class StoryWorkflow:
         )
         seeds, reference = make_seeds(number, old.settings, history, fixed=fixed)
         saves = []
+        travelogue = old.settings.travelogue if old.schema_version == "3.0" else None
         for slot, seed in zip(old.saves, seeds, strict=True):
             if scope == "reel" or (scope == "save" and slot.save_id == save_id):
-                saves.append(StorySave(save_id=slot.save_id, seed=seed))
+                saves.append(StorySave(save_id=slot.save_id, seed=seed,
+                                      travelogue=TravelogueState(policy=travelogue)
+                                      if travelogue else None))
             elif scope == "candidates" and slot.save_id == save_id:
-                saves.append(StorySave(save_id=slot.save_id, seed=slot.seed))
+                saves.append(StorySave(save_id=slot.save_id, seed=slot.seed,
+                                      travelogue=TravelogueState(policy=travelogue)
+                                      if travelogue else None))
             else:
                 saves.append(slot.model_copy(deep=True))
         if scope == "narration" and not next(s for s in saves if s.save_id == save_id).final:
             raise ValueError("narration regeneration requires an existing final brief")
+        templates = dict(old.templates)
+        if scope == "narration" and old.schema_version == "3.0":
+            slot = next(s for s in saves if s.save_id == save_id)
+            slot.final = None
+            slot.narration_stats = None
+            slot.narration_draft = None
+            slot.grounding_review = None
+            slot.narration_attempts = ()
+            if narration_style in ("travelogue", "sol") or slot.travelogue:
+                policy = slot.travelogue.policy if slot.travelogue else (
+                    old.settings.travelogue or TraveloguePolicy()
+                )
+                if narration_style == "sol":
+                    policy = TraveloguePolicy.sol()
+                slot.travelogue = TravelogueState(policy=policy)
+                if narration_style is not None:
+                    templates.update(load_travelogue_prompts(policy.prompt_version))
         store = RunStore.create(root, run_id)
         run = StoryRun(
             schema_version=old.schema_version,
@@ -148,13 +184,13 @@ class StoryWorkflow:
             model=old.model,
             settings=old.settings,
             random_seed=number,
-            templates=old.templates,
+            templates=templates,
             seed_catalog=reference,
             history=history,
             saves=tuple(saves),
             regeneration=scope,
             regeneration_save_id=save_id,
-            narration_pending=scope == "narration",
+            narration_pending=scope == "narration" and old.schema_version != "3.0",
             frozen_save_ids=tuple(
                 s.save_id
                 for s in saves
@@ -190,10 +226,17 @@ class StoryWorkflow:
             lock.rmdir()
 
     def _context(self, run, slot):
-        if run.schema_version == "2.0":
+        settings = run.settings.model_dump(
+            mode="json",
+            exclude={"travelogue", "narration_model"} | (
+                {"world_reasoning_effort", "narration_reasoning_effort"}
+                if run.schema_version != "3.0" else set()
+            ),
+        )
+        if run.schema_version != "1.0":
             context = {
                 "theme": run.request.theme,
-                "settings": run.settings.model_dump(mode="json"),
+                "settings": settings,
                 "narration_policy": run.settings.narration.model_dump(mode="json"),
             }
             if slot is not None:
@@ -228,7 +271,7 @@ class StoryWorkflow:
             "theme": run.request.theme,
             "save_id": slot.save_id,
             "seed": slot.seed.model_dump(mode="json"),
-            "settings": run.settings.model_dump(mode="json"),
+            "settings": settings,
             "narration_policy": run.settings.narration.model_dump(mode="json"),
             "recent_history": [h.model_dump(mode="json") for h in run.history],
             "other_saves": [
@@ -244,9 +287,38 @@ class StoryWorkflow:
 
     def _generate(self, run, slot, store, logger, stage, response_type, check, **extra):
         context = {**self._context(run, slot), **extra}
+        if run.schema_version == "3.0" and stage in ("world_simulation", "world_review"):
+            context = {
+                "save_id": slot.save_id,
+                "selected": slot.selected.model_dump(mode="json"),
+                "minimum_coherence": run.settings.novelty.minimum_coherence,
+                **extra,
+            }
+        if run.schema_version == "3.0" and stage.startswith("narration"):
+            context = {
+                "save_id": slot.save_id,
+                "title": slot.selected.title,
+                "approved_facts": slot.world.spec.facts(),
+                "narration_policy": slot.spoken_policy(run.settings).model_dump(mode="json"),
+                **extra,
+            }
+            if stage == "narration_description":
+                context = {"title": slot.selected.title, "approved_facts": slot.world.spec.facts()}
+            elif stage in (
+                "narration_prose_candidates", "narration_prose_candidate",
+                "narration_prose_selection",
+            ):
+                policy = slot.travelogue.policy
+                context = {
+                    "title": slot.selected.title,
+                    "world_description": slot.travelogue.description.description,
+                    "word_range": [policy.target_min_words, policy.target_max_words],
+                    **extra,
+                }
         if stage in ("brief", "narration"):
             context.pop("creative_history", None)  # Preserve the selected story; no re-invention.
         address = slot.save_id if slot else "reel"
+        model = run.settings.model_for(stage) if run.provider == "openai" else run.model
         feedback = ""
         directory = store.run_dir / "story_requests" / address / stage
         # Recover a response persisted immediately before an interruption, even if its
@@ -259,7 +331,8 @@ class StoryWorkflow:
                 and cached.get("context") == context
                 and cached.get("base_prompt") == base_prompt
                 and cached.get("provider") == run.provider
-                and cached.get("model") == run.model
+                and cached.get("model") == model
+                and cached.get("reasoning_effort") == run.settings.effort_for(stage)
             ):
                 result = response_type.model_validate(cached["response"])
                 check(result)
@@ -275,13 +348,14 @@ class StoryWorkflow:
             record = dict(
                 stage=stage,
                 provider=run.provider,
-                model=run.model,
+                model=model,
                 created_at=utc_now().isoformat(),
                 prompt=prompt,
                 base_prompt=base_prompt,
                 context=context,
                 template=run.templates[stage].template.model_dump(),
                 parameters=run.settings.model_dump(mode="json"),
+                reasoning_effort=run.settings.effort_for(stage),
                 status="requested",
             )
             store.write_text(request_path, json.dumps(record, indent=2), "application/json")
@@ -354,7 +428,14 @@ class StoryWorkflow:
         known = {h.fingerprint for h in run.history[: run.settings.novelty.recent_semantic_history]}
         for rating in result.ratings:
             if rating.nearest_history_id is not None and rating.nearest_history_id not in known:
-                raise ValueError("critic nearest_history_id must identify supplied history")
+                raise ValueError(
+                    "critic nearest_history_id must identify supplied history; "
+                    f"invalid ID: {rating.nearest_history_id[:80]!r}. "
+                    "Copy an exact history_id from creative_history.recent_save_summaries. "
+                    "Do not use a title or current-reel save_id. If no prior save is "
+                    "meaningfully similar, use null and history_similarity=0; explain "
+                    "current-reel comparisons in rationale."
+                )
             if rating.nearest_history_id is None and rating.history_similarity != 0:
                 raise ValueError("nonzero history similarity requires a nearest history ID")
 
@@ -446,7 +527,7 @@ class StoryWorkflow:
             run.error = None
             self._save(run, store)
             try:
-                if run.schema_version == "2.0":
+                if run.schema_version != "1.0":
                     from save_reel.story_development import develop_worlds
 
                     develop_worlds(self, run, store, logger)
@@ -478,6 +559,10 @@ class StoryWorkflow:
                             self._save(run, store)
                     self._select(run)
                     self._save(run, store)
+                if run.schema_version == "3.0":
+                    from save_reel.story_simulation import finish_worlds
+
+                    finish_worlds(self, run, store, logger)
                 for slot in run.saves:
                     if slot.final is None:
                         slot.final = self._generate(

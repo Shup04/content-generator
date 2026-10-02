@@ -1,0 +1,37 @@
+[WRITING_RULES]
+
+STAGE: Invent exactly candidates_per_save complete, mutually distinct world concepts.
+Use candidate IDs save_NN_candidate_1, save_NN_candidate_2, etc. for the supplied save.
+Only the seed's role, broad setting family, emotion, general resource pressure, era,
+and approximate severity are constraints. Time/weather constraints, when present,
+can be developed to fit the world. They are not a bank of final details.
+
+Invent together: title, specific setting, resource problem and food mechanics,
+shelter, inhabitants, threat and danger type, central survival mechanic, rule,
+consequence, escape, permanent cost and its type, anomaly, visual hook, emotional
+mechanic, architecture, materials, time, weather, and palette. Explain palette_reason.
+The resource problem may refine the broad resource pressure into something specific.
+All candidates must offer different ways of living, not renamed variants.
+
+Fill causal_logic with five concrete answers: danger_origin, rule_protection,
+failure_consequence, cost_origin, reason_to_choose. Explanations must actually connect
+facts, not merely assert that they are connected. Include a compact signature of the
+setting, danger, rule, cost, anomaly and inhabitants. Each signature field is a short
+literal concept phrase (roughly 3–8 words), faithful to the full concept. These are
+comparison labels, not narration. Do not hide duplication behind new terminology.
+No final narration, no final visual prompts. Later stages derive those from this concept.
+If replacement_feedback is present, invent a substantially different concept, not a
+cosmetic paraphrase of the rejected candidates.
+
+RECENT CREATIVE HISTORY
+The following territory is already occupied. Do not use it as inspiration. Do not
+merely rename or lightly remix it. Differ in several meaningful dimensions. Reuse of
+exact titles, settings, anomalies, rules or permanent costs is rejected by code;
+frequent title words/suffixes and palette combinations are also limited.
+[HISTORY]
+
+CURRENT SEED, REEL CONTEXT AND CONFIGURATION
+[CONTEXT]
+
+VALIDATION FEEDBACK
+[FEEDBACK]

@@ -1,10 +1,16 @@
 {
   "model": "gpt-6-luna",
-  "prompt_version": "v2",
+  "prompt_version": "v3",
   "seed_catalog_version": "v2",
   "candidates_per_save": 3,
   "validation_retries": 2,
-  "max_output_tokens": 6000,
+  "max_output_tokens": 32000,
+  "travelogue": {
+    "prompt_version": "v3",
+    "target_min_words": 45,
+    "target_max_words": 70,
+    "estimated_words_per_minute": 195
+  },
   "narration": {
     "min_lines": 4,
     "max_lines": 6,
@@ -29,5 +35,8 @@
     "max_candidate_rounds": 3,
     "max_reel_replacements": 8,
     "summary_set_limit": 12
-  }
+  },
+  "world_reasoning_effort": "high",
+  "narration_reasoning_effort": "medium",
+  "narration_model": "gpt-6.1-sol"
 }

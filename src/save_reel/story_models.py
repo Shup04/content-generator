@@ -18,6 +18,7 @@ from save_reel.models import (
     Text,
     utc_now,
 )
+from save_reel.story_narration_models import TraveloguePolicy, TravelogueState
 
 
 class SaveRole(StrEnum):
@@ -97,13 +98,19 @@ class NoveltyPolicy(Model):
 
 class StorySettings(Model):
     model: Text = "gpt-6-luna"
-    prompt_version: str = Field(default="v2", pattern=r"^v[1-9][0-9]*$")
+    narration_model: Text = "gpt-6.1-sol"
+    prompt_version: str = Field(default="v3", pattern=r"^v[1-9][0-9]*$")
     seed_catalog_version: str = Field(default="v2", pattern=r"^v[1-9][0-9]*$")
     candidates_per_save: int = Field(default=3, ge=2, le=6)
     recent_history_count: int = Field(default=80, ge=0, le=500)
-    validation_retries: int = Field(default=2, ge=0, le=5)
-    max_output_tokens: int = Field(default=6000, ge=1000, le=20000)
+    validation_retries: int = Field(default=2, ge=0, le=10)
+    max_output_tokens: int = Field(default=32000, ge=1000, le=64000)
+    world_reasoning_effort: Literal["low", "medium", "high", "xhigh", "max"] = "high"
+    candidate_reasoning_effort: Literal["low", "medium", "high", "xhigh", "max"] | None = None
+    narration_reasoning_effort: Literal["low", "medium", "high", "xhigh", "max"] = "medium"
     narration: NarrationPolicy = Field(default_factory=NarrationPolicy)
+    # Independent of the world prompts and legacy briefing policy.
+    travelogue: TraveloguePolicy | None = Field(default_factory=TraveloguePolicy.sol)
     novelty: NoveltyPolicy = Field(default_factory=NoveltyPolicy)
 
     @model_validator(mode="after")
@@ -111,6 +118,25 @@ class StorySettings(Model):
         if (self.prompt_version == "v1") != (self.seed_catalog_version == "v1"):
             raise ValueError("v1 prompts and v1 seeds must be selected together")
         return self
+
+    def effort_for(self, stage: str) -> str | None:
+        if self.prompt_version in ("v1", "v2"):
+            return None  # Keep the request parameters of legacy workflows.
+        if stage == "candidates" and self.candidate_reasoning_effort is not None:
+            return self.candidate_reasoning_effort
+        return (
+            self.narration_reasoning_effort
+            if stage.startswith("narration")
+            else self.world_reasoning_effort
+        )
+
+    def model_for(self, stage: str) -> str:
+        if stage in (
+            "narration_description", "narration_prose_candidates", "narration_prose_candidate",
+            "narration_prose_selection",
+        ):
+            return self.narration_model
+        return self.model
 
 
 class BroadWorldSeed(Model):
@@ -345,7 +371,7 @@ class SurvivalBrief(Model):
     visual_hook: Text
     unanswered_mystery: Text
     severity: int = Field(ge=1, le=10)
-    narration: Annotated[tuple[Text, ...], Field(min_length=2, max_length=12)]
+    narration: Annotated[tuple[Text, ...], Field(min_length=1, max_length=12)]
 
 
 class CartridgeVariables(Model):
@@ -372,6 +398,122 @@ class FinalStory(Model):
     brief: SurvivalBrief
     cartridge: CartridgeVariables
     environment: EnvironmentVariables
+
+
+class WorldSpec(Model):
+    """Approved simulation facts. No narration or image-prompt prose."""
+
+    environment: Text
+    resource_system: Text
+    food: Text | None
+    water: Text | None
+    shelter: Text | None
+    inhabitants: Text | None
+    threat: Text
+    warning_signs: tuple[Text, ...]
+    critical_survival_rule: Text
+    consequence_if_broken: Text
+    escape_conditions: Text | None
+    daily_routine: Text
+    long_term_cost: Text
+    causal_logic: CausalLogic
+
+    def facts(self) -> dict[str, str]:
+        result = self.model_dump(exclude={"causal_logic", "warning_signs"}, exclude_none=True)
+        if self.warning_signs:
+            result["warning_signs"] = " ".join(self.warning_signs)
+        return result
+
+
+WorldFact = Literal[
+    "environment", "resource_system", "food", "water", "shelter", "inhabitants", "threat",
+    "warning_signs",
+    "critical_survival_rule", "consequence_if_broken", "escape_conditions", "daily_routine",
+    "long_term_cost",
+]
+
+
+class WorldSimulation(Model):
+    spec: WorldSpec
+    cartridge: CartridgeVariables
+    environment: EnvironmentVariables
+
+
+class WorldApproval(Model):
+    causal_coherence: UnitScore
+    preserves_selected_concept: bool
+    practical_system: bool
+    issues: tuple[Text, ...]
+
+    def approved(self, policy: NoveltyPolicy) -> bool:
+        return (
+            self.causal_coherence >= policy.minimum_coherence
+            and self.preserves_selected_concept and self.practical_system and not self.issues
+        )
+
+
+class GroundedLine(Model):
+    text: Text
+    fact_refs: Annotated[tuple[WorldFact, ...], Field(min_length=1)]
+    tone: Literal["practical", "unsettling"]
+    practical_change: Text
+
+
+class GroundedNarration(Model):
+    lines: Annotated[tuple[GroundedLine, ...], Field(min_length=2, max_length=12)]
+
+    @property
+    def narration(self) -> tuple[str, ...]:
+        return tuple(line.text for line in self.lines)
+
+    def check(self, spec: WorldSpec, policy: NarrationPolicy) -> None:
+        policy.check(self.narration)
+        unsettling = sum(line.tone == "unsettling" for line in self.lines)
+        if not 1 <= unsettling <= 2 or unsettling >= len(self.lines) - unsettling:
+            raise ValueError("narration needs a practical majority and only 1–2 unsettling lines")
+        facts = spec.facts()
+        for line in self.lines:
+            if len(set(line.fact_refs)) != len(line.fact_refs):
+                raise ValueError("line fact references must be distinct")
+            if any(ref not in facts for ref in line.fact_refs):
+                raise ValueError("narration refers to a missing or unknown world fact")
+
+
+class NarrationLineReview(Model):
+    line_number: int = Field(ge=1, le=12)
+    supported_by_facts: bool
+    changes_practical_understanding: bool
+    repeats_information: bool
+    tone: Literal["practical", "unsettling"]
+    issue: Text | None
+
+
+class GroundingReview(Model):
+    lines: tuple[NarrationLineReview, ...]
+
+    def check(self, draft: GroundedNarration) -> None:
+        if tuple(line.line_number for line in self.lines) != tuple(range(1, len(draft.lines) + 1)):
+            raise ValueError("grounding review must assess each narration line once in order")
+
+    def problems(self, draft: GroundedNarration) -> tuple[str, ...]:
+        self.check(draft)
+        return tuple(
+            f"Line {item.line_number}: "
+            f"{item.issue or 'unsupported, redundant or non-practical line'}"
+            for line, item in zip(draft.lines, self.lines, strict=True)
+            if not item.supported_by_facts or not item.changes_practical_understanding
+            or item.repeats_information or item.tone != line.tone or item.issue is not None
+        )
+
+
+class WorldAttempt(Model):
+    simulation: WorldSimulation
+    review: WorldApproval
+
+
+class NarrationAttempt(Model):
+    draft: GroundedNarration
+    review: GroundingReview
 
 
 class NarrationDraft(Model):
@@ -434,10 +576,20 @@ class StorySave(Model):
     previous_attempts: tuple[CandidateAttempt, ...] = ()
     excluded_candidates: tuple[Text, ...] = ()
     replacement_feedback: tuple[Text, ...] = ()
+    world: WorldSimulation | None = None
+    world_review: WorldApproval | None = None
+    world_attempts: tuple[WorldAttempt, ...] = ()
+    narration_draft: GroundedNarration | None = None
+    grounding_review: GroundingReview | None = None
+    narration_attempts: tuple[NarrationAttempt, ...] = ()
+    travelogue: TravelogueState | None = None
+
+    def spoken_policy(self, settings):
+        return self.travelogue.policy if self.travelogue else settings.narration
 
 
 class StoryRun(Model):
-    schema_version: Literal["1.0", "2.0"] = "2.0"
+    schema_version: Literal["1.0", "2.0", "3.0"] = "3.0"
     kind: Literal["survival_story_generation"] = "survival_story_generation"
     run_id: RunId
     source_run_id: RunId | None = None
@@ -462,13 +614,22 @@ class StoryRun(Model):
     reel_replacements: int = 0
     frozen_save_ids: tuple[SaveId, ...] = ()
 
+    @model_validator(mode="before")
+    @classmethod
+    def preserve_saved_narration_policy(cls, value):
+        # Missing in old checkpoints: resume their saved briefing behavior, never upgrade it.
+        if isinstance(value, dict) and isinstance(value.get("settings"), dict):
+            if "travelogue" not in value["settings"]:
+                value = {**value, "settings": {**value["settings"], "travelogue": None}}
+        return value
+
     @model_validator(mode="after")
     def diversity(self):
         if tuple(s.save_id for s in self.saves) != SAVE_IDS:
             raise ValueError("story requires exactly four ordered distinct save IDs")
         if tuple(s.seed.role for s in self.saves) != ROLES:
             raise ValueError("each save must occupy its distinct narrative role")
-        is_v2 = self.schema_version == "2.0"
+        is_v2 = self.schema_version != "1.0"
         fields = (
             ("setting_family",)
             if is_v2
@@ -487,6 +648,10 @@ class StoryRun(Model):
         ):
             raise ValueError("selected titles must be unique within a reel")
         for slot in self.saves:
+            if self.schema_version == "3.0":
+                from save_reel.story_simulation import validate_slot
+
+                validate_slot(self, slot)
             if slot.candidates:
                 candidates = slot.candidates.candidates
                 expected = {
@@ -528,7 +693,7 @@ class StoryRun(Model):
             if slot.final:
                 if not slot.selected or slot.final.brief.title != slot.selected.title:
                     raise ValueError("final title must match the selected concept")
-                self.settings.narration.check(slot.final.brief.narration)
+                slot.spoken_policy(self.settings).check(slot.final.brief.narration)
                 for field, value in (
                     ("main_threat", slot.selected.primary_danger),
                     ("critical_rule", slot.selected.critical_rule),
@@ -573,7 +738,7 @@ class StoryRun(Model):
                         raise ValueError("completed stories must meet critic thresholds")
             for slot in self.saves:
                 expected_stats = NarrationStats.measure(
-                    slot.final.brief.narration, self.settings.narration
+                    slot.final.brief.narration, slot.spoken_policy(self.settings)
                 )
                 if slot.narration_stats != expected_stats:
                     raise ValueError("cached narration statistics do not match the spoken text")

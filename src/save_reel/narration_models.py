@@ -9,7 +9,7 @@ from save_reel.models import Artifact, Model, RunId, StageState, StageStatus, Te
 from save_reel.render_models import RenderRun, TimelineSegment
 
 Seconds = Annotated[float, Field(ge=0, allow_inf_nan=False)]
-ScriptText = Annotated[Text, Field(max_length=500)]
+ScriptText = Annotated[Text, Field(max_length=1000)]
 
 
 class NarrationGame(Model):

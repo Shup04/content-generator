@@ -1,0 +1,42 @@
+[WRITING_RULES]
+
+PHASE 1 — WORLD SIMULATION. Return structured facts, never spoken narration.
+Develop the selected concept into a coherent daily survival system. Include:
+environment, resource_system, food, water, shelter, inhabitants, threat,
+warning_signs, critical_survival_rule, consequence_if_broken, escape_conditions,
+daily_routine, long_term_cost and concise causal_logic. Each danger, warning,
+protective action and consequence must arise from the environment and its systems.
+Explain observable causes and effects. Do not attach arbitrary penalties or curses.
+Explain how the player can actually obtain supplies, find shelter and survive a day.
+Use null for genuinely unspecified food/water or optional facts; warning_signs may
+be empty if there is no detectable warning. Do not invent filler to populate fields.
+
+Keep approved concept facts EXACTLY in these spec fields:
+selected.resource_situation -> resource_system
+selected.safe_sleeping -> shelter
+selected.inhabitants -> inhabitants
+selected.primary_danger -> threat
+selected.critical_rule -> critical_survival_rule
+selected.rule_consequence -> consequence_if_broken
+selected.escape -> escape_conditions
+selected.long_term_drawback -> long_term_cost
+Refine food, water, warnings, routine and environment consistently with those facts.
+If previous_review exists, correct its issues without replacing the selected world.
+
+Also supply the existing structured visual variables; never complete image prompts.
+These are separate from the world spec and are not supplied to the narrator.
+Cartridge: shell_material_color, shape_language, motifs, object_mood,
+hint_scene_description. Tease one object, fragment or clue, never the whole world
+or its hidden survival bargain. Preserve the selected world's visual identity.
+Environment: environment_description, time_of_day, key_visual_elements, palette,
+mood, visual_anomaly, environmental_motion, shot_composition, key_surfaces.
+Copy selected.palette, selected.anomaly and selected.time_of_day EXACTLY into
+environment.palette, environment.visual_anomaly and environment.time_of_day.
+Use restrained old-game motion, simple glow and fog; deterministic visual templates
+remain authoritative. Do not add lore or mechanics solely to decorate an image.
+
+SELECTED CONCEPT AND SIMULATION FEEDBACK
+[CONTEXT]
+
+SCHEMA VALIDATION FEEDBACK
+[FEEDBACK]

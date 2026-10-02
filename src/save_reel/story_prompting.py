@@ -8,13 +8,23 @@ from save_reel.models import CompiledPrompt
 from save_reel.prompting import PromptCompiler
 
 STORY_STAGES = ("candidates", "review", "brief", "narration", "reel_review")
+SIMULATION_STAGES = (
+    "candidates", "review", "reel_review", "world_simulation", "world_review",
+    "narration", "narration_review",
+)
+TRAVELOGUE_STAGES = ("narration_candidates", "narration_selection")
+PROSE_STAGES = ("narration_description", "narration_prose_candidates", "narration_prose_selection")
+PLAIN_STAGES = ("narration_description", "narration_prose_candidate", "narration_prose_selection")
 
 
 class StoryPromptCompiler(PromptCompiler):
     bracket_placeholders = True
 
     def __init__(self, stage: str, version: str = "v1", *, prompts_dir: Path | None = None):
-        if stage not in (*STORY_STAGES, "rules"):
+        if stage not in (
+            *STORY_STAGES, *SIMULATION_STAGES, *TRAVELOGUE_STAGES, *PROSE_STAGES, *PLAIN_STAGES,
+            "narration_examples", "rules",
+        ):
             raise ValueError("unknown story prompt stage")
         self.template_name = f"story_{stage}"
         super().__init__(version, prompts_dir=prompts_dir)
@@ -27,7 +37,11 @@ def load_prompts(version: str, prompts_dir: Path | None = None) -> dict[str, Com
     rules = StoryPromptCompiler("rules", version, prompts_dir=prompts_dir).render({})
     # Keep unresolved context slots in the snapshot so resume never reads revised templates.
     result = {"rules": rules}
-    for stage in STORY_STAGES[:-1] if version == "v1" else STORY_STAGES:
+    stages = (
+        STORY_STAGES[:-1] if version == "v1"
+        else STORY_STAGES if version == "v2" else SIMULATION_STAGES
+    )
+    for stage in stages:
         result[stage] = StoryPromptCompiler(stage, version, prompts_dir=prompts_dir).render(
             {
                 "WRITING_RULES": rules.text,
@@ -37,6 +51,21 @@ def load_prompts(version: str, prompts_dir: Path | None = None) -> dict[str, Com
             }
         )
     return result
+
+
+def load_travelogue_prompts(version="v1", prompts_dir=None) -> dict[str, CompiledPrompt]:
+    # Narration has its own version; changing style must not change the world prompts.
+    examples = (
+        StoryPromptCompiler("narration_examples", version, prompts_dir=prompts_dir).render({}).text
+        if version == "v2" else ""
+    )
+    return {
+        stage: StoryPromptCompiler(stage, version, prompts_dir=prompts_dir).render(
+            {"CONTEXT": "[CONTEXT]", "FEEDBACK": "[FEEDBACK]", "EXAMPLES": examples}
+        )
+        for stage in (PLAIN_STAGES if version == "v3"
+                      else PROSE_STAGES if version == "v2" else TRAVELOGUE_STAGES)
+    }
 
 
 def render_request(prompt: CompiledPrompt, context: dict, feedback: str = "") -> str:

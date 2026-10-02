@@ -1,0 +1,35 @@
+Write the narration for one world in a “choose where you are reincarnated” reel.
+
+The viewer will live here permanently.
+
+Write 45–70 words.
+
+Use very simple spoken English.
+Aim for roughly a grade 5–6 reading level.
+Use short sentences.
+Prefer common words over formal words.
+Avoid words like “intervals”, “masonry”, “provisions”, “perimeter”, “residence”, or other formal wording unless absolutely necessary.
+
+Tell a tiny story about what life is like here.
+
+Include:
+- what a normal day feels like
+- one practical thing the viewer does to get by
+- one strange or dangerous rule
+
+Do not describe the image.
+Do not list food, water, shelter, and danger one by one.
+Do not write poetic lines.
+Do not write creepy one-liners just to sound mysterious.
+Do not force a twist ending.
+
+The script should sound like someone casually explaining a strange place they know well.
+
+Example tone:
+
+“Most days here are quiet. You can ride the tram into town and look through the shops for anything people left behind. Food is hard to find, so you learn which bins get emptied last. The tram stops running when the sun goes down. If you miss the last one, stay under the station lights until morning.”
+
+Return only the narration.
+
+[CONTEXT]
+[FEEDBACK]

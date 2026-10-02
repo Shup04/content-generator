@@ -1,0 +1,38 @@
+INDEPENDENT NARRATION REVIEW — CHOOSE A FLOWING TRAVELOGUE, NOT A CHECKLIST.
+
+Review all three candidates against the SAME approved_facts. Rate each candidate ID
+exactly once. Do not trust its cited facts, sensory labels or claimed main danger.
+The application will select among eligible candidates in this priority order:
+1. spoken_flow: most natural when read aloud;
+2. not_list_like: least like a sequence of resource/shelter/rule instructions;
+3. cliche_free: fewest obvious AI-writing clichés;
+4. distinct_fact_count: fewest actual world facts needed to make it interesting.
+Scores are 0–1, higher is better. Give a concise rationale explaining the comparison.
+
+Eligibility checks:
+- grounded: every claim, including sensory detail and activity, follows from the
+  cited approved facts. Valid citations alone do not prove a claim. Reject new
+  mechanics, invented sensory attributes or omitted qualifications that change meaning.
+- second_person and connected_prose: one natural paragraph addressed to "you".
+- checklist_like: true for category-by-category instructions, even joined with "and".
+- sensory_detail_count: count concrete sensory/environment details actually in the
+  prose; require 1–2. Descriptions do NOT need a practical survival justification.
+- ordinary_activity_present: at least one grounded thing the viewer spends time doing.
+- distinct_fact_count: require 3–4 actual facts used, not number of fields or citations.
+  Do not let a bundled quotation disguise many separate mechanics or instructions.
+- main_danger_count: at most ONE main danger/rule. Its warning and consequence can
+  belong to that same mechanism; unrelated threats/rules count separately. Zero is fine.
+- creepy_asides_or_poetry and forced_twist: reject these when present. A natural
+  consequence is not automatically a twist. Do not reward a clever creepy closing line.
+- issues: specific factual/style failures, empty only if none. Do not request missing
+  resource/shelter/escape information or coverage of every world-spec category.
+
+There is NO practical-line quota, deletion test, required danger ratio, mandatory
+unsettling line or demand that every sentence be ominous. Sensory detail and normal
+transitions can earn their place by making the travelogue natural and specific.
+The world must remain frozen. If all candidates fail, narration alone is rewritten.
+
+[CONTEXT]
+
+SCHEMA VALIDATION FEEDBACK
+[FEEDBACK]

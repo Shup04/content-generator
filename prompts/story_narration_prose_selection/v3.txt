@@ -1,0 +1,10 @@
+Choose the narration that sounds most natural when spoken. Rate each from 0 to 1.
+Prefer a tiny story told in short sentences and common words, around grade 5–6 level.
+It should convey a normal day, one practical task and one strange or dangerous rule.
+Check that its claims follow from the world description. Reject invented mechanics,
+image descriptions, survival checklists, formal wording, poetry, creepy one-liners
+and forced twists. Do not demand more facts or coverage of survival categories.
+Use issues only for real problems and give a short reason for each rating.
+
+[CONTEXT]
+[FEEDBACK]

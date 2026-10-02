@@ -1,0 +1,22 @@
+PHASE 1 — APPROVE THE WORLD SIMULATION, not the writing.
+Compare the structured spec against the selected concept. Independently check:
+- Does the environment cause the threat?
+- Are warnings observable and consistent with how that threat works?
+- Does the critical rule actually protect the player?
+- Does breaking it logically cause the stated consequence?
+- Does the permanent cost emerge from the routine or survival system?
+- Are food, water, shelter and the daily routine mutually consistent?
+- Is there a plausible reason to live here despite a meaningful downside?
+Do not accept an author's causal explanation simply because it asserts a connection.
+Check that additions preserve the approved concept and that visual variables do not
+invent conflicting facts. A resource_system may concern something other than food;
+food and water must describe actual supplies, or be null when unspecified.
+Score causal_coherence 0–1, mark preserves_selected_concept and practical_system,
+and list concrete issues. Empty issues means no objections, not uncertainty.
+Reject weak systems even if their prose or images sound impressive. Failed specs
+will be revised; do not lower standards to obtain approval.
+
+[CONTEXT]
+
+SCHEMA VALIDATION FEEDBACK
+[FEEDBACK]

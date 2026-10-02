@@ -110,8 +110,37 @@ def review_text(run: StoryRun) -> str:
     if run.reel_review:
         lines += [f"Reel diversity: {run.reel_review.overall:.2f}", run.reel_review.rationale, ""]
     for slot in run.saves:
-        if run.schema_version == "2.0":
+        if run.schema_version != "1.0":
             lines += _candidate_debug(slot)
+        if run.schema_version == "3.0":
+            lines += ["WORLD SIMULATION"]
+            if slot.world:
+                lines += [json.dumps(slot.world.spec.model_dump(mode="json"), indent=2)]
+            for i, attempt in enumerate(slot.world_attempts, 1):
+                lines += [f"World review {i}: {attempt.review.model_dump_json()}"]
+            if slot.travelogue:
+                lines += ["TRAVELOGUE NARRATION — THREE CANDIDATES"]
+                if slot.travelogue.description:
+                    lines += [f"Writer: {run.settings.narration_model}",
+                              "Concise world description:",
+                              slot.travelogue.description.description, ""]
+                for i, attempt in enumerate(slot.travelogue.attempts, 1):
+                    lines += [f"Narration round {i}:"]
+                    for candidate in attempt.candidates.candidates:
+                        lines += [f"  {candidate.candidate_id}: {candidate.paragraph}"]
+                    for rating in attempt.review.ratings:
+                        lines += [f"  Rating: {rating.model_dump_json()}"]
+                if slot.travelogue.candidates and not slot.travelogue.review:
+                    lines += [f"Pending review: {slot.travelogue.candidates.model_dump_json()}"]
+                lines += [f"Selected narration: {slot.travelogue.selected_id or 'none'}", ""]
+            if not slot.travelogue:
+                lines += ["NARRATION GROUNDING"]
+            for i, attempt in enumerate(slot.narration_attempts, 1):
+                lines += [f"Narration attempt {i}:"]
+                for line in attempt.draft.lines:
+                    lines += [f"  {line.text} [{', '.join(line.fact_refs)}; {line.tone}]"]
+                    lines += [f"  Practical change: {line.practical_change}"]
+                lines += [f"Grounding review: {attempt.review.model_dump_json()}"]
         if not slot.final:
             lines += [f"{slot.save_id.upper()} — unfinished", ""]
             continue
@@ -134,11 +163,15 @@ def review_text(run: StoryRun) -> str:
         ):
             if value is not None:
                 lines += [f"{label}:", value, ""]
-        lines += ["Narration:", *(f"{i}. {line}" for i, line in enumerate(brief.narration, 1))]
+        lines += ["Narration:"]
+        lines += list(brief.narration) if slot.travelogue else [
+            f"{i}. {line}" for i, line in enumerate(brief.narration, 1)
+        ]
         stats = slot.narration_stats
         if stats:
+            units = "paragraph" if slot.travelogue else "lines"
             lines += [
-                f"{stats.words} words / {stats.lines} lines / "
+                f"{stats.words} words / {stats.lines} {units} / "
                 f"~{stats.estimated_seconds}s (estimate only)"
                 + ("" if stats.within_target else " — outside target, within tolerance")
             ]
@@ -227,6 +260,22 @@ def export_story(run: StoryRun, store: RunStore):
                 value.model_dump_json(indent=2, by_alias=True, exclude_none=True) + "\n",
                 "application/json",
             )
+        if slot.world:
+            for name, value in (
+                ("world_spec", slot.world.spec), ("world_review", slot.world_review),
+                ("narration_grounding", slot.narration_draft),
+                ("narration_review", slot.grounding_review),
+                ("narration_description", slot.travelogue.description if slot.travelogue else None),
+                ("narration_candidates", slot.travelogue.candidates if slot.travelogue else None),
+                ("narration_selection", slot.travelogue.review if slot.travelogue else None),
+                ("narration_travelogue", slot.travelogue),
+            ):
+                if value is None:
+                    continue
+                save.artifacts[name] = store.write_text(
+                    f"{prefix}/{name}.json", value.model_dump_json(indent=2) + "\n",
+                    "application/json",
+                )
         cart_prompt = CartridgePromptCompiler("v2").render(
             cartridge.model_dump(by_alias=True, exclude_none=True)
         )

@@ -31,6 +31,10 @@ def add_story_commands(commands):
         "--scope", choices=("reel", "save", "candidates", "narration"), required=True
     )
     regenerate.add_argument("--save-id", choices=SAVE_IDS)
+    regenerate.add_argument(
+        "--narration-style", choices=("travelogue", "sol"),
+        help="Upgrade one approved v3 world's writer; sol uses concise-description prose",
+    )
     for command in (generate, regenerate):
         command.add_argument(
             "--runs-dir", type=Path, default=Path("runs") if command is generate else None
@@ -94,7 +98,7 @@ def run_story_command(args: argparse.Namespace) -> None:
         else:
             logging.getLogger("save_reel").warning(
                 "Mock fixtures only: use --provider openai to assess Luna writing. "
-                "Repeated fixture worlds will be rejected by v2 novelty checks."
+                "Repeated fixture worlds will be rejected by novelty checks."
             )
         settings = (
             StorySettings.model_validate_json(args.settings.read_text(encoding="utf-8"))
@@ -140,6 +144,7 @@ def run_story_command(args: argparse.Namespace) -> None:
             runs_dir=args.runs_dir,
             run_id=args.run_id,
             random_seed=args.seed,
+            narration_style=args.narration_style,
         )
         root = args.runs_dir or args.run_dir.parent
     if not args.quiet:
