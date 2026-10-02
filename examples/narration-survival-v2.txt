@@ -42,10 +42,12 @@ The footsteps carry on.
 
 PRODUCTION NOTES — NOT SPOKEN
 The four short briefings target the configured 25–40 words per save.
-Actual duration must come from TTS. The existing five-second reveals are too short
-for these briefings at a natural pace; reusing the clips will require longer reveals
-through looping or another local edit when assembly is requested. No timing,
-rendering, speech or media generation has been performed for this draft.
+Assembled reel: runs/reel-survival-v2/reel.mp4 (69.5 seconds, 1080x1920, 24 fps).
+The four existing clips loop locally into 15-second reveals using
+examples/reel-survival-v2.json. All four new ElevenLabs briefings play at their
+natural speed; the original intro recording is reused. Timed subtitles and the
+five-second countdown are included. No new images or MiniMax clips were generated.
+Speech timestamps, subtitles and verification are saved with the finished reel.
 
 Existing clip references, in order:
 runs/deep-end-broll-v2/broll_video.mp4
