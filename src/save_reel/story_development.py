@@ -126,8 +126,8 @@ def develop_worlds(workflow, run, store, logger):
     ):
         return
     while True:
+        workflow.parallel_slots(run, store, logger, "concepts", _prepare_slot)
         for slot in run.saves:
-            _prepare_slot(workflow, run, slot, store, logger)
             if slot.selected is None:
                 slot.selected = max(_eligible(slot), key=lambda c: _score(slot, c))
                 slot.selection_score = round(_score(slot, slot.selected), 3)
@@ -150,6 +150,7 @@ def develop_worlds(workflow, run, store, logger):
             continue
         workflow._save(run, store)
         if run.reel_review is None:
+            workflow.progress("diversity", "reel", "running")
             run.reel_review = workflow._generate(
                 run,
                 None,
@@ -180,6 +181,7 @@ def develop_worlds(workflow, run, store, logger):
             )
             workflow._save(run, store)
         if reel_review_passes(run.reel_review, run.settings.novelty):
+            workflow.progress("diversity", "reel", "completed")
             return
         mutable = [s for s in run.saves if s.save_id not in run.frozen_save_ids]
         suggested = next((s for s in mutable if s.save_id == run.reel_review.weakest_save_id), None)

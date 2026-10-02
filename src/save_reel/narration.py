@@ -6,9 +6,11 @@ import math
 import re
 import shutil
 import textwrap
+import threading
 from contextlib import contextmanager
 from pathlib import Path
 
+from save_reel.concurrency import parallel_each
 from save_reel.models import Artifact, StageState, StageStatus, utc_now
 from save_reel.narration_models import (
     NarrationCue,
@@ -261,7 +263,7 @@ class NarrationPipeline:
         finally:
             path.rmdir()
 
-    def execute(self, store: RunStore) -> Path:
+    def execute(self, store: RunStore, *, max_workers=1, progress=None) -> Path:
         self._check_tools()
         with self._lock(store), run_logging(store) as logger:
             run = self.load(store)
@@ -274,48 +276,21 @@ class NarrationPipeline:
             if run.status == StageStatus.COMPLETED:
                 return store.run_dir / run.artifacts["reel"].path
             active = "speech"
-            current = None
             try:
                 run.status = StageStatus.RUNNING
                 run.stages[active] = StageState(status=StageStatus.RUNNING, started_at=utc_now())
                 self._save(store, run)
-                for cue in run.cues:
-                    current = cue
-                    if cue.audio and cue.metadata:
-                        logger.info("Reusing narration: %s", cue.cue_id)
-                        continue
-                    if cue.attempted:
-                        raise MediaError(
-                            f"{cue.cue_id}: speech request was attempted without a saved result; "
-                            "check ElevenLabs history before starting a new run. No duplicate sent."
-                        )
-                    if self.provider is None:
-                        raise MediaError("An ElevenLabs speech provider is required")
-                    cue.attempted = True
-                    cue.stage = StageState(status=StageStatus.RUNNING, started_at=utc_now())
-                    self._save(store, run)
-                    logger.info(
-                        "Generating narration: %s (%d characters)", cue.cue_id, len(cue.text)
-                    )
-                    speech = self.provider.generate(cue.text, run.settings)
-                    cue.audio = store.write_bytes(
-                        f"speech/{cue.cue_id}.mp3", speech.content, "audio/mpeg"
-                    )
-                    cue.metadata = store.write_text(
-                        f"speech/{cue.cue_id}.json",
-                        speech.metadata.model_dump_json(indent=2),
-                        "application/json",
-                    )
-                    cue.stage.status = StageStatus.COMPLETED
-                    cue.stage.finished_at = utc_now()
-                    self._save(store, run)
-                current = None
+                self._speech(store, run, logger, max_workers, progress)
                 run.stages[active].status = StageStatus.COMPLETED
                 run.stages[active].finished_at = utc_now()
                 active = "compose"
                 run.stages[active] = StageState(status=StageStatus.RUNNING, started_at=utc_now())
                 self._save(store, run)
+                if progress:
+                    progress("compose", "reel", "running")
                 self._compose(store, run, logger)
+                if progress:
+                    progress("compose", "reel", "completed")
                 run.stages[active].status = StageStatus.COMPLETED
                 run.stages[active].finished_at = utc_now()
                 run.status = StageStatus.COMPLETED
@@ -331,12 +306,56 @@ class NarrationPipeline:
                     message,
                     utc_now(),
                 )
-                if current and current.stage.status != StageStatus.COMPLETED:
-                    current.stage.status = StageStatus.FAILED
-                    current.stage.error = message
-                    current.stage.finished_at = utc_now()
                 self._save(store, run)
                 raise MediaError(message) from None
+
+    def _speech(self, store, run, logger, max_workers, progress):
+        lock = threading.RLock()
+        report = progress or (lambda *args: None)
+
+        def record(cue):
+            report("speech", cue.cue_id, "running")
+            try:
+                with lock:
+                    if cue.audio and cue.metadata:
+                        logger.info("Reusing narration: %s", cue.cue_id)
+                        report("speech", cue.cue_id, "completed")
+                        return
+                    if cue.attempted:
+                        raise MediaError(
+                            f"{cue.cue_id}: speech request was attempted without a saved result; "
+                            "check ElevenLabs history before starting a new run. No duplicate sent."
+                        )
+                    if self.provider is None:
+                        raise MediaError("An ElevenLabs speech provider is required")
+                    cue.attempted = True
+                    cue.stage = StageState(status=StageStatus.RUNNING, started_at=utc_now())
+                    self._save(store, run)
+                logger.info("Generating narration: %s (%d characters)", cue.cue_id, len(cue.text))
+                speech = self.provider.generate(cue.text, run.settings)
+                audio = store.write_bytes(f"speech/{cue.cue_id}.mp3", speech.content, "audio/mpeg")
+                metadata = store.write_text(
+                    f"speech/{cue.cue_id}.json", speech.metadata.model_dump_json(indent=2),
+                    "application/json",
+                )
+                with lock:
+                    cue.audio, cue.metadata = audio, metadata
+                    cue.stage.status = StageStatus.COMPLETED
+                    cue.stage.finished_at = utc_now()
+                    self._save(store, run)
+                report("speech", cue.cue_id, "completed")
+            except Exception as exc:
+                with lock:
+                    cue.stage.status = StageStatus.FAILED
+                    cue.stage.error = (
+                        str(exc) if isinstance(exc, MediaError) else type(exc).__name__
+                    )
+                    cue.stage.finished_at = utc_now()
+                    self._save(store, run)
+                report("speech", cue.cue_id, "failed")
+                raise
+
+        parallel_each(record, run.cues, max_workers)
 
     def _compose(self, store: RunStore, run: NarrationRun, logger) -> None:
         plans, inputs = [], []

@@ -1,14 +1,17 @@
 """Checkpointed seed -> candidates -> review -> selection -> brief workflow."""
 
+import copy
 import hashlib
 import json
 import secrets
+import threading
 from contextlib import contextmanager
 from itertools import product
 from pathlib import Path
 
 from pydantic import ValidationError
 
+from save_reel.concurrency import parallel_each
 from save_reel.models import ConceptRequest, StageStatus, utc_now
 from save_reel.pipeline import run_logging
 from save_reel.providers.story import StoryProvider
@@ -41,9 +44,59 @@ from save_reel.story_seeds import make_seeds
 
 
 class StoryWorkflow:
-    def __init__(self, provider: StoryProvider, *, history: StoryHistory | None = None):
+    def __init__(
+        self, provider: StoryProvider, *, history: StoryHistory | None = None,
+        max_workers: int = 1, progress=None,
+    ):
+        if not 1 <= max_workers <= 4:
+            raise ValueError("Parallel saves must be between 1 and 4")
         self.provider = provider
         self.history = history
+        self.max_workers = max_workers
+        self.progress = progress or (lambda *args: None)
+
+    def parallel_slots(self, run, store, logger, stage, function):
+        """Workers see stable reel context and checkpoint only their own save.
+
+        The coordinator alone performs cross-save selection and history writes.
+        A failed worker cannot overwrite another save's successful checkpoint.
+        """
+        if self.max_workers == 1:
+            for slot in run.saves:
+                self.progress(stage, slot.save_id, "running")
+                try:
+                    function(self, run, slot, store, logger)
+                except Exception:
+                    self.progress(stage, slot.save_id, "failed")
+                    raise
+                self.progress(stage, slot.save_id, "completed")
+            return
+        snapshots = [run.model_copy(deep=True) for _ in run.saves]
+        lock = threading.RLock()
+
+        def work(index):
+            local = snapshots[index]
+            slot = local.saves[index]
+            worker = copy.copy(self)
+
+            def checkpoint(_run, _store):
+                with lock:
+                    saves = list(run.saves)
+                    saves[index] = slot.model_copy(deep=True)
+                    run.saves = tuple(saves)
+                    self._save(run, store)
+
+            worker._save = checkpoint
+            self.progress(stage, slot.save_id, "running")
+            try:
+                function(worker, local, slot, store, logger)
+                checkpoint(local, store)
+            except Exception:
+                self.progress(stage, slot.save_id, "failed")
+                raise
+            self.progress(stage, slot.save_id, "completed")
+
+        parallel_each(work, range(len(run.saves)), self.max_workers)
 
     @staticmethod
     def load(run_dir: Path) -> StoryRun:
