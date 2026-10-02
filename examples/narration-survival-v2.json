@@ -1,0 +1,21 @@
+{
+  "intro": "You have died. You must pick a game cartridge to be reincarnated into.",
+  "games": [
+    {
+      "title": "DEEP END",
+      "text": "Deep End is a heated water park.\nThe vending machines keep you fed.\nLock the staff-room door before sleeping.\nSomething checks the handles every night.\nThe waterfalls cover its footsteps.\nThat EXIT sign has no door."
+    },
+    {
+      "title": "SUNROOM LINE",
+      "text": "Sunroom Line serves lunch at every stop.\nYou can sleep on the warm seats.\nBoard before the bell stops.\nThe tram never visits a platform twice.\nMiss it, and you'll wait there alone."
+    },
+    {
+      "title": "VELVET ORCHARD",
+      "text": "Velvet Orchard feeds you for free.\nSleep upstairs, beyond the roots.\nEach peach makes your legs a little heavier.\nEventually, you cannot climb the stairs.\nThe luggage beneath the tree belonged to people who stayed."
+    },
+    {
+      "title": "SIGNAL 03",
+      "text": "Signal zero three opens into a school.\nFresh lunches wait inside the lockers.\nTake one, then leave before the bell.\nThe floor disappears when lessons begin.\nThe footsteps carry on."
+    }
+  ]
+}

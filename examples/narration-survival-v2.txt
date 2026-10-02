@@ -1,0 +1,54 @@
+CHOOSE YOUR SAVE — SURVIVAL SCRIPT FOR EXISTING CLIPS
+
+Locally authored draft. Not generated or scored by the Luna story workflow.
+Matches the four titles and visual environments in examples/cartridges/v2/collection.json.
+Revises the earlier story premises using the practical survival-briefing direction.
+The JSON companion follows the existing NarrationScript contract.
+
+INTRO
+You have died.
+You must pick a game cartridge to be reincarnated into.
+
+[Existing cartridge-selection screen and five-second countdown. No speech.]
+
+SAVE 01 — DEEP END
+Deep End is a heated water park.
+The vending machines keep you fed.
+Lock the staff-room door before sleeping.
+Something checks the handles every night.
+The waterfalls cover its footsteps.
+That EXIT sign has no door.
+
+SAVE 02 — SUNROOM LINE
+Sunroom Line serves lunch at every stop.
+You can sleep on the warm seats.
+Board before the bell stops.
+The tram never visits a platform twice.
+Miss it, and you'll wait there alone.
+
+SAVE 03 — VELVET ORCHARD
+Velvet Orchard feeds you for free.
+Sleep upstairs, beyond the roots.
+Each peach makes your legs a little heavier.
+Eventually, you cannot climb the stairs.
+The luggage beneath the tree belonged to people who stayed.
+
+SAVE 04 — SIGNAL 03
+Signal zero three opens into a school.
+Fresh lunches wait inside the lockers.
+Take one, then leave before the bell.
+The floor disappears when lessons begin.
+The footsteps carry on.
+
+PRODUCTION NOTES — NOT SPOKEN
+The four short briefings target the configured 25–40 words per save.
+Actual duration must come from TTS. The existing five-second reveals are too short
+for these briefings at a natural pace; reusing the clips will require longer reveals
+through looping or another local edit when assembly is requested. No timing,
+rendering, speech or media generation has been performed for this draft.
+
+Existing clip references, in order:
+runs/deep-end-broll-v2/broll_video.mp4
+runs/sunroom-line-broll-v1/broll_video.mp4
+runs/velvet-orchard-broll-v1/broll_video.mp4
+runs/signal-03-broll-v1/broll_video.mp4
