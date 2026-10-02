@@ -55,6 +55,7 @@ def run_media_command(args) -> Path:
                 image_quality=args.image_quality,
                 duration=args.duration,
                 resolution=args.resolution,
+                video_model=args.video_model,
             )
             store = pipeline.prepare(
                 values,

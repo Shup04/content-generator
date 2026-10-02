@@ -8,9 +8,10 @@ mock saves and their label/B-roll prompts. Both mock workflows run without API k
 Optional real workflows generate full cartridge renders with GPT Image 2.5,
 or generate B-roll stills and animate them with MiniMax H3. The local `render`
 command combines saved cartridges and B-roll into a vertical MP4 with FFmpeg.
-The `narrate` command adds ElevenLabs speech and timed subtitles from a manually
-written script. Separate flat label image generation, Blender, orchestration,
-and social publishing are not implemented.
+The `narrate` command adds ElevenLabs speech and timed subtitles from a saved script.
+**Save Reel Studio** connects these stages through a local browser interface, including
+draft editing and full reel generation. Separate flat label image generation, Blender,
+automatic scheduling, and social publishing are not implemented.
 
 ## How the prompts fit your video
 
@@ -50,6 +51,122 @@ python -m pip install -e '.[dev]'
 For a regular installation without development tools, use `python -m pip install .`.
 Pydantic v2 is the only dependency for the mock workflow. Installation may download dependencies;
 running the mock workflow does not.
+
+## Local web interface
+
+Start Studio from the project directory:
+
+```sh
+source .venv/bin/activate
+save-reel studio start
+```
+
+Open **http://localhost:8765**. The server runs in the background; closing the browser
+or terminal does not stop it. It binds to `127.0.0.1` only. No additional web framework,
+Node build, Codex session, or external service is needed to open and edit drafts.
+For paid generation, install the existing provider extras and keep keys in `.env`:
+
+```sh
+python -m pip install -e '.[story,media,speech]'
+save-reel studio status
+save-reel studio stop
+# Optional foreground mode, or another project/port:
+save-reel studio serve --port 8765 --project-dir /path/to/content-generator
+```
+
+Studio does not install itself as a login service or start generation automatically.
+Run `studio start` again after a reboot. Scheduling can be added to the saved-job
+runner later. `studio stop` refuses to stop while a generation job is running.
+
+### Editing and generation
+
+1. Create a draft, or use **Video library → Stories → Use these stories** to import
+   a completed story run. Imports copy its stories and visual variables; matching
+   cartridge/B-roll branches are attached where available.
+2. In **Reel workspace**, choose **Generate four new stories** or **Use the four stories
+   below**. **Story direction** is a creative brief for new world generation,
+   not narration. Titles, scripts and visual variables belong to this reel.
+3. **Generate finished reel** runs the complete production workflow: world selection,
+   world simulation, narration writing, cartridges, B-roll stills, MiniMax clips,
+   FFmpeg assembly, ElevenLabs voice, captions (if enabled), and the final MP4. Existing
+   stories and matching assets are reused. Choosing new stories replaces the draft's
+   worlds; duplicate it to keep a variant. New-story production uses OpenAI.
+4. **Activity** shows a progress bar, per-stage counts and individual save states.
+   Progress measures completed work items, including cached results, not estimated
+   time remaining. Technical logs are available in a collapsed section. A finished-reel
+   job is complete only after the narrated MP4 and all five voice segments exist.
+5. **Video library** defaults to **Finished reels only**. Partial narration jobs and
+   base renders are excluded. Search by reel name, title or run ID, and filter by type,
+   status or earliest date. Watch and download the finished MP4 directly.
+
+**Advanced: run or regenerate a single stage** is for targeted edits or tests. Its
+story-only provider can use offline Mock fixtures, with history isolated from production.
+Media and voice actions use paid APIs even with mock stories. **Base video only · local**
+uses FFmpeg without speech generation. **Finish existing media + voice** assembles saved
+assets and adds narration. Simply opening Studio or editing does not generate anything.
+
+The four saves run concurrently within each stage, bounded by **Parallel saves per
+stage** (default 4, configurable 1–4). Whole-reel diversity review remains coordinated,
+worlds must pass review before narration writing, and all stills finish before video
+submissions. Speech recordings also run concurrently. Checkpoints are serialized;
+failures retain other saves' completed results. Stage barriers, provider queues, retries
+and local rendering mean total runtime will not necessarily fall by 75%.
+
+For media changes, choose **Saves to update**. Matching saved inputs are reused by default.
+**Make a new version** requests new media even if inputs match. Regenerating video or
+changing only motion/video settings copies the matching, checksum-verified still into
+its new branch without an image call. Changing image settings or the still prompt makes
+that still stale. Explicit still regeneration makes a fresh image. Still-only actions
+never call MiniMax. Resuming a video reuses its saved remote task ID.
+
+### Prompts, presets and settings
+
+**Prompt editor** edits this draft's template copies. Only active templates are shown
+initially; older schema versions remain selectable. Keep the placeholders. **Models &
+settings** controls world/narration models, reasoning, image quality, video settings,
+ElevenLabs voice and render timing. Advanced JSON exposes the remaining settings.
+Keep narration word limits consistent with the writing prompt.
+
+Both pages offer **Reusable presets & revision history**. Save a named preset revision
+containing prompts and model/settings choices, then apply it to any draft. Presets do
+not contain worlds or assets. Each preset is immutable; save another revision for a
+variant. Earlier draft saves can restore an individual template in Prompt editor, or
+all prompts/settings in Models & settings. Restoring creates a new revision. Shipped
+v1/v2/v3 template choices select a schema; saved revisions track your own wording edits.
+Completed runs and queued job snapshots never change when a preset or draft changes.
+Presets are in `runs/.studio/presets/`; draft setting revisions are in
+`runs/.studio/revisions/<draft_id>/`.
+
+The video selector includes `MiniMax-H3` (4–15s, 768P/2K) and `MiniMax-H3-Max`
+(5–15s, 480P/768P). The UI and typed settings reject unsupported combinations, following
+[MiniMax's V2 API documentation](https://platform.minimax.io/docs/api-reference/video-generation-v2-create).
+The CLI also accepts `generate-broll --video-model MiniMax-H3-Max`.
+
+Rendering preserves the existing opener, layouts and subtitles. **Time per save** sets
+the reveal length; short clips can loop. The existing speech fitting logic is retained:
+long scripts may need a longer reveal or a shorter script. Rerendering with the same
+voice/model/settings reuses matching recordings, including when just one save's text
+changes. Imported story runs do not automatically attach a previous reel's speech.
+
+### Saved state and recovery
+
+Drafts live in `runs/.studio/drafts/`. Each job snapshots its draft, prompt files,
+request, progress and log under `runs/.studio/jobs/<job_id>/`. Generated stages use
+ordinary `runs/studio-.../` directories and the existing manifests. Studio uses the
+existing creative history, story reviews, deterministic prompt compilers, provider
+adapters, and FFmpeg/narration implementations.
+
+Only one job runs at a time. Its draft is locked for editing until completion; other
+drafts remain editable. Browser disconnects do not cancel the worker. Failed/interrupted
+jobs can be resumed from **Activity**, provided the draft has not been edited since.
+Resume uses the saved snapshot and existing stage caches. MiniMax polling timeouts keep
+the remote task ID. Ambiguous paid requests retain the existing duplicate-request guards:
+check the log/provider before retrying a new job. A forcibly terminated stage may retain
+its pipeline lock; the log names it rather than silently removing it.
+
+The server log is `runs/.studio/server.log`. Keys are never returned through the UI;
+the settings page shows only whether each local key is configured. The local API checks
+Host/Origin and a session token for mutations, and serves only allowlisted run media.
 
 ## Generate survival stories without media
 

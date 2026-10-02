@@ -19,6 +19,9 @@ def build_parser() -> argparse.ArgumentParser:
     from save_reel.story_cli import add_story_commands
 
     add_story_commands(commands)
+    from save_reel.studio_cli import add_studio_command
+
+    add_studio_command(commands)
     create = commands.add_parser("create", help="Prepare label and B-roll prompts for four games")
     create.add_argument("--theme", default="forgotten worlds", help="Creative theme for the reel")
     create.add_argument("--provider", choices=("mock",), default="mock")
@@ -63,7 +66,10 @@ def build_parser() -> argparse.ArgumentParser:
         "--image-quality", choices=("low", "medium", "high", "xhigh", "max"), default="medium"
     )
     generate.add_argument("--duration", type=int, choices=range(4, 16), default=5)
-    generate.add_argument("--resolution", choices=("768P", "2K"), default="768P")
+    generate.add_argument("--resolution", choices=("480P", "768P", "2K"), default="768P")
+    generate.add_argument(
+        "--video-model", choices=("MiniMax-H3", "MiniMax-H3-Max"), default="MiniMax-H3"
+    )
     resume = commands.add_parser(
         "resume-broll", help="Continue a saved B-roll run without regenerating completed media"
     )
@@ -145,6 +151,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     # Provider libraries may otherwise log signed download URLs at INFO.
     logging.getLogger("httpx").setLevel(logging.WARNING)
     try:
+        if args.command == "studio":
+            from save_reel.studio_cli import run_studio_command
+
+            run_studio_command(args)
+            return 0
         if args.command in {"generate-concepts", "resume-concepts", "regenerate-concepts",
                             "review-concepts", "import-story-history"}:
             from save_reel.story_cli import run_story_command

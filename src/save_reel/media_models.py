@@ -47,9 +47,18 @@ class ImageSettings(Model):
 class BrollSettings(ImageSettings):
     image_size: Literal["864x1536"] = "864x1536"
     image_background: Literal["opaque"] = "opaque"
-    video_model: Literal["MiniMax-H3"] = "MiniMax-H3"
+    video_model: Literal["MiniMax-H3", "MiniMax-H3-Max"] = "MiniMax-H3"
     duration: Annotated[int, Field(ge=4, le=15)] = 5
-    resolution: Literal["768P", "2K"] = "768P"
+    resolution: Literal["480P", "768P", "2K"] = "768P"
+
+    @model_validator(mode="after")
+    def video_capabilities(self):
+        if self.video_model == "MiniMax-H3-Max":
+            if self.duration < 5 or self.resolution == "2K":
+                raise ValueError("MiniMax-H3-Max supports 5–15 seconds at 480P or 768P")
+        elif self.resolution == "480P":
+            raise ValueError("MiniMax-H3 supports 768P or 2K")
+        return self
 
 
 class BrollRun(Model):
@@ -69,6 +78,7 @@ class BrollRun(Model):
     artifacts: dict[str, Artifact] = Field(default_factory=dict)
     image_request_id: str | None = None
     image_usage: dict[str, Any] = Field(default_factory=dict)
+    reused_still_run_id: RunId | None = None
     video_task_id: str | None = None
     video_task_status: str | None = None
     video_usage: dict[str, Any] = Field(default_factory=dict)
