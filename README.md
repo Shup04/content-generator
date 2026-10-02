@@ -1,9 +1,9 @@
 # save-reel
 
-The initial foundation for short-form **Choose Your Save** videos. This milestone
-creates one reel with exactly four save games, prepares four label prompts and
-four B-roll still prompts, and saves a JSON manifest. The mock workflow runs locally
-without API keys or network access.
+A generator for short-form **Choose Your Save** videos. The story workflow builds
+four practical survival worlds, prepares structured visual variables and deterministic
+prompts, and saves a JSON manifest. The original `create` workflow still prepares four
+mock saves and their label/B-roll prompts. Both mock workflows run without API keys.
 
 Optional real workflows generate full cartridge renders with GPT Image 2.5,
 or generate B-roll stills and animate them with MiniMax H3. The local `render`
@@ -51,12 +51,173 @@ For a regular installation without development tools, use `python -m pip install
 Pydantic v2 is the only dependency for the mock workflow. Installation may download dependencies;
 running the mock workflow does not.
 
+## Generate survival stories without media
+
+The default story configuration is **v2**. It keeps practical survival-briefing narration
+while moving authorship of the world's specific mechanics to the model. The default
+intended text model remains configurable `gpt-6-luna`. Story commands never generate
+images, video, speech or FFmpeg output; existing clips and visual templates stay intact.
+
+For actual writing review, install the text extra and set `OPENAI_API_KEY` in the local,
+ignored `.env` or environment:
+
+```sh
+python -m pip install -e '.[story]'
+
+# Treat existing accepted v1/v2 stories as occupied creative territory.
+save-reel import-story-history runs --history-dir runs/.story-history
+
+# Paid text only: generate 20 episodes for writing review.
+save-reel generate-concepts --provider openai --count 20 --run-id survival-v2 \
+  --settings examples/story-settings.json
+save-reel review-concepts runs/survival-v2-001
+```
+
+Use `--model` or `SAVE_REEL_STORY_MODEL` to change the text model. Precedence is CLI,
+environment/`.env`, settings file, default. `--env-file` selects the credentials file.
+Model access failures are reported; there is no silent substitution. A normal successful
+episode uses 13 text calls: four candidate sets, four critiques, one reel critique, and
+four brief expansions. Validation and quality replacement can add calls, within the
+configured limits. No paid calls are required by the automated tests.
+
+For one offline plumbing check:
+
+```sh
+save-reel generate-concepts --provider mock --run-id fixture-check \
+  --history-dir runs/fixture-history
+```
+
+**Mock output is not Luna output and is not a writing-quality assessment.** The earlier
+20-run batches used the v1 mock, which combined fixed settings, anomalies, rules, costs,
+palettes and suffixes. V2's mock serves twelve complete authored fixture worlds. It does
+not invent unlimited worlds or pretend to follow creative constraints. Repeating it
+against the same history eventually exhausts the fixtures and fails the novelty gates.
+Use `--provider openai` for a 20-episode creative review. The CLI retains its offline-safe
+mock default and prominently labels fixture output.
+
+### How v2 develops a world
+
+1. `story_seeds.py` samples only **broad constraints** from `prompts/world_seeds/v2.json`:
+   role, setting family, surface/deeper emotion, general resource pressure, severity,
+   era, broad time and weather. It contains no final setting, anomaly, danger, rule,
+   inhabitants, cost, hook, palette or title.
+2. Luna invents three complete alternatives per save. `WorldConcept` includes the
+   specific setting, connected resource/danger/rule/consequence/cost system, inhabitants,
+   mystery, visual hook and palette. Five required causal explanations connect the
+   environment to danger, protection, failure, permanent cost and choice appeal.
+3. `story_novelty.py` rejects recent exact titles, settings, anomalies, rules and costs;
+   generic overused title suffixes/phrases/tokens; and excessive exact palette combinations.
+   It compares compact setting/danger/rule/cost/anomaly/inhabitant signatures locally.
+4. A separate structured critique scores novelty, causal coherence, survival specificity,
+   visual hook, choice appeal, mystery, non-poetic writing and overall quality. It also
+   reports its nearest recent concept and semantic similarity. Both local checks and
+   the critic must allow the candidate; a high critic score cannot override a hard reuse
+   failure. A rejected set triggers fresh candidates, not pressure to approve the old set.
+5. Each save's strongest eligible candidate enters a four-save review. Deterministic checks
+   block duplicate or cosmetically changed settings, threats, central mechanics and palettes.
+   The reel critic assesses differences across environments, resources, rules, inhabitants,
+   costs, emotions and palettes. A weak/redundant choice is replaced and the set rechecked.
+6. Accepted concepts expand into survival briefs, short narration and visual variables.
+   The selected rule, consequence, threat, cost, inhabitants, shelter, visual hook, palette,
+   anomaly and time stay consistent. Existing deterministic visual templates compile the
+   variables; no media providers run.
+
+The four roles remain attractive, nostalgic, mysterious and ominous, without fixed
+inhabitant types, danger banks or a mandatory severity pattern. The narration remains
+4–6 short lines targeting 25–40 words, with 25% tolerance and stored counts/estimated
+seconds. No audio timing or TTS behavior is changed.
+
+### Creative history and acceptance settings
+
+`examples/story-settings.json` documents the knobs. Under `novelty`, defaults are:
+
+| Setting | Default | Purpose |
+| --- | ---: | --- |
+| `recent_exact_history` | 50 | Exact reuse and palette-frequency window |
+| `recent_semantic_history` | 100 | Concept-signature comparison window |
+| `title_history_window` | 50 | Title-token/phrase/suffix frequency window |
+| `title_suffix_limit` | 1 | Maximum occurrences before rejecting another suffix |
+| `title_token_limit` | 3 | Maximum occurrences before rejecting another title word |
+| `title_phrase_limit` | 1 | Limit for repeated two-word title phrases |
+| `palette_limit` | 2 | Limit for the same color set, independent of ordering |
+| `similarity_threshold` | 0.78 | Reject at or above local/critic semantic similarity |
+| `minimum_novelty` | 0.70 | Required critic novelty score |
+| `minimum_coherence` | 0.75 | Required critic causal-coherence score |
+| `minimum_overall` | 0.72 | Required critic overall score |
+| `minimum_reel_diversity` | 0.65 | Minimum for every reel-diversity dimension |
+| `max_candidate_rounds` | 3 | Candidate-set budget per save, including the first set |
+| `max_reel_replacements` | 8 | Maximum replacements while repairing the four-save set |
+| `summary_set_limit` | 12 | Maximum entries in each compact history frequency set |
+
+These are recent-window limits, not permanent vocabulary bans. Setting the history
+windows to zero disables historical checks, while within-reel checks remain active.
+The old `recent_history_count` option applies only to v1.
+
+History consists of deduplicated JSON records under `runs/.story-history`. The model
+receives bounded title/frequency sets and short one-line concept signatures, **never
+full old narration**. History appears once in candidate/critic prompts as occupied
+territory, not inspiration. Brief/narration expansion does not receive negative history.
+Use `--history-dir` for a shared index or an isolated experiment. Local signature matching
+uses small word/phrase normalizations; the critic handles broader paraphrases. Neither
+is a mathematical guarantee of originality, and there is no vector database.
+
+`import-story-history` accepts run roots, individual run directories, `story.json`, or
+`manifest.json`. It merges completed v1/v2 stories, skips unfinished runs, upgrades old
+compact metadata, and is idempotent. It neither regenerates content nor rewrites source
+runs. The original v1 templates/catalogue/mock remain solely for explicit legacy runs
+and cache compatibility; v2 production generation does not read their creative banks.
+
+### Inspect, resume and regenerate
+
+Each run keeps the existing `manifest.json` plus a typed `story.json`. The latter stores
+broad seeds, all candidate rounds, scores, nearest matches, rejection reasons, selections,
+reel reviews, briefs, narration, visual variables, settings, prompt snapshots and provenance.
+`story_review.txt` shows the same development decisions in readable form, including failed
+runs. Exact requests/responses are checkpointed under `story_requests/`.
+
+Per-save `cartridge_values.json`, `broll_values.json`, `motion_values.json` and compiled
+prompts retain the existing downstream contracts. The normal Reel manifest references
+story state by checksum and records template/provider/model provenance. No existing
+cartridge/b-roll templates, UI, rendering, narration or MiniMax code is redesigned.
+
+```sh
+save-reel resume-concepts runs/survival-v2-001
+save-reel regenerate-concepts runs/survival-v2-001 --scope save \
+  --save-id save_03 --run-id revised-world
+save-reel regenerate-concepts runs/survival-v2-001 --scope candidates \
+  --save-id save_03 --run-id new-alternatives
+save-reel regenerate-concepts runs/survival-v2-001 --scope narration \
+  --save-id save_03 --run-id revised-words
+save-reel regenerate-concepts runs/survival-v2-001 --scope reel --run-id fresh-reel
+```
+
+Regeneration forks the source run. Unchanged saves remain frozen; narration-only changes
+preserve the world and its approved set. Resume reuses successful stages and responses.
+A request interrupted before its response is saved may need a new text call on explicit
+resume; remote idempotency is not claimed. A run lock prevents concurrent generation.
+A batch stops on failure, leaving a review and checkpoints; resume or regenerate that
+run, then start remaining episodes with a fresh prefix. `--quiet` prints review paths.
+
+V1 runs still load, review, resume and regenerate using their saved v1 rules. To use the
+new creative process, create a new v2 run rather than silently changing an old cache.
+A procedural `--seed` reproduces broad constraints given the same history; cached text
+is the source of exact model-output reproducibility.
+
+Provider adapters still implement `generate(stage, prompt, context, response_type)`.
+The OpenAI adapter continues to use [Responses structured outputs](https://developers.openai.com/api/docs/guides/structured-outputs)
+with Pydantic. The new creative instructions live in `prompts/story_*/v2.txt`, including
+`story_reel_review/v2.txt`; schemas live in `story_models.py`, acceptance checks in
+`story_novelty.py`, and bounded replacement in `story_development.py`. Live writing
+quality should be reviewed using the OpenAI command above; fixture tests prove workflow
+behavior and rejection logic rather than literary quality.
+
 ## Render the reel locally
 
 Requires FFmpeg and ffprobe on `PATH`, with the `libx264` encoder and `drawtext`
-filter available. The first pass was verified with FFmpeg 9.0.1. The renderer
-uses an installed Liberation Sans, DejaVu Sans, or Arial bold font; pass
-`--font-file /path/to/font.ttf` to select a different font. No API keys or optional
+filter available. Rendering is verified with FFmpeg 9.0.1. The console opener
+bundles Oxanium for display text and IBM Plex Mono for system labels. B-roll
+titles/story captions retain the existing font; `--font-file /path/to/font.ttf`
+controls that font. No API keys or optional
 media Python dependencies are required for rendering existing assets.
 
 With the four cartridge and B-roll runs already generated:
@@ -64,17 +225,19 @@ With the four cartridge and B-roll runs already generated:
 ```sh
 save-reel render \
   --collection examples/cartridges/v2/collection.json \
-  --settings examples/reel-first-pass.json \
-  --run-id reel-first-pass
+  --settings examples/reel-console.json \
+  --run-id reel-console-base
 ```
 
-The command prints `runs/reel-first-pass/reel.mp4`. The default output is
-1080×1920, 24 fps, H.264 with AAC audio, and has this 29-second timeline:
+The command prints `runs/reel-console-base/reel.mp4`. Output remains
+1080×1920, 24 fps, H.264 with AAC audio. This intermediate render reserves a
+four-second starfield intro; `narrate` then finalizes its length from speech.
+Before narration, its 29-second timeline is:
 
 | Time | Content |
 | --- | --- |
-| 0–4 seconds | Four transparent cartridges in a 2×2 grid, introduction text |
-| 4–9 seconds | Same animated grid, countdown from 5 to 1, one tone per second |
+| 0–4 seconds | Near-black starfield reserved for the spoken intro |
+| 4–9 seconds | Cartridge grid appears, countdown from 5 to 1, one tone per second |
 | 9–14 seconds | DEEP END |
 | 14–19 seconds | SUNROOM LINE |
 | 19–24 seconds | VELVET ORCHARD |
@@ -87,13 +250,34 @@ resized, and trimmed to five seconds. Original clip audio is removed. Only the
 locally synthesized countdown tones play; the introduction and B-roll are silent
 until narration and your supplied music are added.
 
-Edit `examples/reel-first-pass.json` to change the introduction duration, countdown,
-clip duration, bobbing, text, background, captions, sound volume, or output size.
+Edit `examples/reel-console.json` to change the countdown, clip duration,
+bobbing, opener styling, sound volume, or output size.
 Durations must fit whole frames and dimensions must be even and exactly 9:16.
 The introduction timing is stored explicitly for the separate ElevenLabs
 `narrate` command described below. Additional
 B-roll run IDs in a game's `broll_run_ids` list play consecutively before the next
 game, each for `clip_seconds`.
+
+Set `loop_short_clips` to `true` to repeat existing footage locally until
+`clip_seconds` is reached, without generating new video. Titles appear once per
+reveal, and source clip audio remains muted. The default is `false`, which keeps
+the existing error when a source clip is too short.
+
+The `opener` object centralizes UI colours, opacity, dimensions, coordinates,
+spacing, star density/motion, and typography. Defaults live in `OpenerStyle` in
+`src/save_reel/opener_style.py`; all positions scale from a 1080×1920 design space.
+Set `opener.display_font_file` and `opener.system_font_file` to local font paths
+to override the bundled fonts. Relative paths resolve from the working directory.
+Fonts and generated starfield/halo textures are copied into each run and checksummed.
+The bundled font licenses and sources are in `src/save_reel/assets/fonts/`.
+
+The opener contains only narration captions, the cartridge slots, SAVE 01–04,
+MAKE YOUR CHOICE, and the countdown. There is no static heading, explanatory
+paragraph, or slogan. Stars drift gently; neutral low-opacity halos and small
+corner marks separate the independently floating cartridges from the background.
+Old `heading`, `intro_lines`, and `background_color` settings still deserialize
+for compatibility, but no longer control the opener. B-roll lower thirds and
+story-caption styling are unchanged.
 
 The collection sets save order and references completed `cartridge.json` and
 `broll.json` runs. The renderer checks titles, transparency settings, checksums,
@@ -115,6 +299,7 @@ runs/<render_run_id>/
   filters/...          # Saved FFmpeg filter graphs
   text/...             # Captions passed as literal text files
   font.ttf
+  ui/...              # Display/system fonts, deterministic starfield and halo textures
   command_*.json       # Exact FFmpeg argument lists
   ffmpeg_*.log
   run.log
@@ -142,13 +327,14 @@ the other API commands, existing environment variables take precedence over `.en
 
 ```sh
 save-reel narrate \
-  --render-run runs/reel-first-pass \
-  --script examples/narration-first-pass.json \
-  --run-id reel-narrated-v1
+  --render-run runs/reel-console-base \
+  --script examples/narration-console.json \
+  --run-id reel-console
 ```
 
-This makes **five paid ElevenLabs requests**: one introduction and one reveal line
-per game. The default model is `eleven_multilingual_v2`, with MP3 audio and
+Without cached speech, this makes **five paid ElevenLabs requests**: one
+introduction and one reveal line per game. The default model is
+`eleven_multilingual_v2`, with MP3 audio and
 character timestamps from the
 [speech-with-timing endpoint](https://elevenlabs.io/docs/api-reference/text-to-speech/convert-with-timestamps).
 `--model` selects another compatible TTS model; `--speed` controls generation
@@ -160,9 +346,32 @@ LINE's safe journey, VELVET ORCHARD's stolen memories, and SIGNAL 03's unresolve
 identity. Edit that JSON to change the narration. Its four titles and order must
 match the source render. No LLM or orchestrator writes or changes the script.
 
-FFmpeg positions speech within the saved introduction and each game's B-roll
-window, retaining the countdown audio and leaving its five seconds speech-free.
-The voice track is normalized and mixed with the original reel audio. When a
+For console openers, the intro must use the exact script in the supplied example:
+"You have died. You must pick a game cartridge to be reincarnated into."
+Two complete captions appear only during their corresponding spoken sentences:
+"You have died" and "You must pick a game cartridge to be reincarnated into".
+Neither appears during the gap between sentences. There are no cartridges yet.
+After the second caption ends, the next video frame reveals the cartridge grid
+and starts the five-second countdown. The intro plays at its generated pace;
+the final duration follows its speech timestamps instead of a guessed pause.
+The new timings are recorded in `narration.json` as `effective_intro_seconds`
+and `timeline`. The source render's timeline remains intact.
+
+To reuse existing recordings during a UI revision, add:
+
+```sh
+--voice-id JBFqnCBsd6RMkjVDRZzb --reuse-speech-run runs/reel-console-v1
+```
+
+The voice, model, and generation settings must match. Each cue with identical
+text is copied and checksum-verified; only changed lines call ElevenLabs. The
+initial console redesign reused all four story recordings and generated only
+the revised introduction. Later typography edits reused all five recordings.
+Use a fresh output run ID for each revision.
+
+FFmpeg places the four stories in their B-roll windows, shifts the countdown
+tones to follow the intro, and leaves the countdown speech-free. The voice track
+is normalized and mixed with those tones. When a story
 line is slightly too long, FFmpeg increases tempo without changing pitch, up to
 1.35×; it fails with an actionable error if a line still will not fit. Leading
 and trailing silence are trimmed using the returned timestamps. Speech is never
@@ -171,7 +380,9 @@ silently truncated to force it into a scene.
 Short phrase subtitles follow those same timestamps and tempo adjustments. They
 are burned into the image using FFmpeg `drawtext` and also saved as `subtitles.srt`.
 Literal text files keep punctuation out of filter syntax. Pass `--no-subtitles`
-to preserve the video stream without re-encoding it; the SRT is still saved.
+to omit B-roll story captions; the two console intro captions and SRT remain.
+Legacy render runs without console assets still use their saved fixed timing,
+and preserve the video stream without re-encoding when subtitles are disabled.
 The original render stays intact. Narration output is a separate run:
 
 ```text
@@ -180,6 +391,9 @@ runs/<narration_run_id>/
   narration.json        # Source render, script, voice settings, stages, checksums
   script.json
   source.mp4            # Copy of the original reel and its countdown audio
+  opener.mp4            # Console opener rebuilt from narration timestamps
+  countdown.wav         # Countdown tones on the final timeline
+  ui/...                # Copied fonts and deterministic textures
   speech/intro.mp3      # Original generated speech; also save_01 through save_04
   speech/intro.json     # Character timestamps, request ID, reported character cost
   narration.wav         # Voice track positioned on the complete reel timeline
@@ -196,7 +410,7 @@ runs/<narration_run_id>/
 ```
 
 ```sh
-save-reel resume-narration runs/reel-narrated-v1
+save-reel resume-narration runs/reel-console
 ```
 
 Resume verifies checksums and reuses saved speech. A completed run returns its
@@ -207,7 +421,7 @@ history before starting a new run. A `.narration.lock` prevents concurrent work;
 if a process was killed, confirm it stopped before removing that lock.
 
 This is a manual narration/assembly step. Music mixing and automatic orchestration
-remain future work. The initial test output is `runs/reel-narrated-v1/reel.mp4`.
+remain future work. The revised console output is `runs/reel-console-v2/reel.mp4`.
 
 ## Generate cartridge renders
 
@@ -484,6 +698,9 @@ src/save_reel/
   media_models.py  # B-roll/cartridge inputs, shared image settings, and state
   render_models.py # Ordered collections, editable timing/layout, and render state
   rendering.py     # FFmpeg composition, countdown audio, and output validation
+  opener_style.py  # Shared console typography, colours, layout and opacity tokens
+  opener.py        # Offline starfield/halo assets, cartridge UI, timed intro captions
+  ffmpeg_text.py   # Shared literal-text rendering; existing B-roll appearance preserved
   narration_models.py # Manual scripts, voice settings, character alignment, state
   narration.py     # Checkpointed speech generation, timed captions, and FFmpeg mix
   narration_cli.py # Optional speech dependency and credential setup
