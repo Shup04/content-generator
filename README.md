@@ -53,10 +53,21 @@ running the mock workflow does not.
 
 ## Generate survival stories without media
 
-The default story configuration is **v2**. It keeps practical survival-briefing narration
-while moving authorship of the world's specific mechanics to the model. The default
-intended text model remains configurable `gpt-6-luna`. Story commands never generate
-images, video, speech or FFmpeg output; existing clips and visual templates stay intact.
+The default story configuration is **v3**, with two phases: WORLD SIMULATION and
+NARRATION. World design stays on `gpt-6-luna`; the final writer uses `gpt-6.1-sol`:
+
+- World design, candidate critiques and simulation approval: `reasoning.effort=high`.
+- Narration description, writing and selection: `reasoning.effort=medium`.
+
+Set `world_reasoning_effort` and `narration_reasoning_effort` in
+`examples/story-settings.json` to change them. Configure the writer independently with
+`narration_model`. [Sol supports medium reasoning](https://developers.openai.com/api/docs/models/gpt-6.1-sol).
+Optional `candidate_reasoning_effort` overrides only the initial candidate-writing
+stage; for example, `"medium"` can reduce generation time while simulations and
+reviews retain High reasoning. Omit it to inherit `world_reasoning_effort`.
+
+Story commands never generate images, video, speech or FFmpeg output; existing clips
+and visual templates stay intact.
 
 For actual writing review, install the text extra and set `OPENAI_API_KEY` in the local,
 ignored `.env` or environment:
@@ -64,21 +75,22 @@ ignored `.env` or environment:
 ```sh
 python -m pip install -e '.[story]'
 
-# Treat existing accepted v1/v2 stories as occupied creative territory.
+# Treat existing accepted v1/v2/v3 stories as occupied creative territory.
 save-reel import-story-history runs --history-dir runs/.story-history
 
 # Paid text only: generate 20 episodes for writing review.
-save-reel generate-concepts --provider openai --count 20 --run-id survival-v2 \
+save-reel generate-concepts --provider openai --count 20 --run-id survival-v3 \
   --settings examples/story-settings.json
-save-reel review-concepts runs/survival-v2-001
+save-reel review-concepts runs/survival-v3-001
 ```
 
-Use `--model` or `SAVE_REEL_STORY_MODEL` to change the text model. Precedence is CLI,
+Use `--model` or `SAVE_REEL_STORY_MODEL` to change the concept/world model. Precedence is CLI,
 environment/`.env`, settings file, default. `--env-file` selects the credentials file.
 Model access failures are reported; there is no silent substitution. A normal successful
-episode uses 13 text calls: four candidate sets, four critiques, one reel critique, and
-four brief expansions. Validation and quality replacement can add calls, within the
-configured limits. No paid calls are required by the automated tests.
+episode uses 37 text calls: four candidate sets, four critiques, one reel critique,
+then seven calls per save (simulation, simulation review, concise description, three
+separate narration drafts, narration selection). Validation and quality replacement can add calls within
+the configured limits. No paid calls are required by the automated tests.
 
 For one offline plumbing check:
 
@@ -89,13 +101,13 @@ save-reel generate-concepts --provider mock --run-id fixture-check \
 
 **Mock output is not Luna output and is not a writing-quality assessment.** The earlier
 20-run batches used the v1 mock, which combined fixed settings, anomalies, rules, costs,
-palettes and suffixes. V2's mock serves twelve complete authored fixture worlds. It does
+palettes and suffixes. The v2/v3 mock serves twelve complete authored fixture worlds. It does
 not invent unlimited worlds or pretend to follow creative constraints. Repeating it
 against the same history eventually exhausts the fixtures and fails the novelty gates.
 Use `--provider openai` for a 20-episode creative review. The CLI retains its offline-safe
 mock default and prominently labels fixture output.
 
-### How v2 develops a world
+### World simulation, then narration
 
 1. `story_seeds.py` samples only **broad constraints** from `prompts/world_seeds/v2.json`:
    role, setting family, surface/deeper emotion, general resource pressure, severity,
@@ -117,15 +129,46 @@ mock default and prominently labels fixture output.
    block duplicate or cosmetically changed settings, threats, central mechanics and palettes.
    The reel critic assesses differences across environments, resources, rules, inhabitants,
    costs, emotions and palettes. A weak/redundant choice is replaced and the set rechecked.
-6. Accepted concepts expand into survival briefs, short narration and visual variables.
-   The selected rule, consequence, threat, cost, inhabitants, shelter, visual hook, palette,
-   anomaly and time stay consistent. Existing deterministic visual templates compile the
-   variables; no media providers run.
+6. **WORLD SIMULATION (High):** expand the selected concept into structured environment,
+   resource system, food/water, shelter, inhabitants, threat, warnings, critical rule,
+   consequence, escape conditions, daily routine, permanent cost and causal connections.
+   No spoken lines are generated. Preserve the selected survival mechanics. Existing
+   visual-variable schemas are populated alongside the spec; visual templates are unchanged.
+7. A High-effort simulation review checks the setting/threat/rule/consequence chain and
+   consistency of supplies, shelter and routine. Narration cannot start until it passes.
+8. **NARRATION (GPT-6.1 Sol, Medium):** first condense the approved world into at most
+   180 words of background. The final writer receives only that description, the title,
+   word range and the user's example script. The supplied prompt asks for one
+   45–70 word narration in short sentences and common words, around grade 5–6 level:
+   a normal day, one practical task and one strange or dangerous rule. It excludes image
+   descriptions, checklists, poetic lines and forced twists. Three independent calls
+   produce alternatives; each successful draft is cached before the next call. The only
+   writer output field is the paragraph. No survival schema, history, fact-count quotas
+   or citation metadata enters the writer. The example guides voice, not world mechanics.
+9. A separate Sol Medium pass rates naturalness and checks grounding against the concise
+   description. The most natural acceptable paragraph wins; stable IDs break ties.
+   If all fail, rewrite narration with compact feedback. Worlds, novelty decisions and
+   visual exports remain unchanged. Description/candidates/review are cached separately.
+
+The voice should calmly describe a bizarre place it knows well. Sentences connect
+naturally, without covering every survival category or making every sentence ominous.
+Sensory detail does not need a survival justification. There is no practical-line quota,
+deletion test, danger ratio or obligatory twist. Paragraph length and structure
+are validated locally; grounding and literary judgments use the independent model review,
+not a claim of mathematical entailment. Live writing still needs review.
+
+Both new phases checkpoint drafts and reviews independently. Rejected outputs and
+reasons remain in `world_attempts` / `travelogue.attempts`. Each phase gets at most
+`validation_retries + 1` quality attempts, in addition to the existing bounded schema
+validation retries. A failing critic is not repeatedly queried to obtain approval.
 
 The four roles remain attractive, nostalgic, mysterious and ominous, without fixed
-inhabitant types, danger banks or a mandatory severity pattern. The narration remains
-4–6 short lines targeting 25–40 words, with 25% tolerance and stored counts/estimated
-seconds. No audio timing or TTS behavior is changed.
+inhabitant types, danger banks or a mandatory severity pattern. Configure the new word
+range under `travelogue` in `examples/story-settings.json`; `narration` retains the old
+briefing policy for legacy runs. Paragraphs have stored word counts and estimated seconds.
+`narration_model` defaults to `gpt-6.1-sol`; `narration_reasoning_effort` defaults to
+`medium`. The separate concept/world `model` remains `gpt-6-luna`.
+Actual timing still comes from TTS; no audio timing or reel-assembly behavior is changed.
 
 ### Creative history and acceptance settings
 
@@ -156,16 +199,16 @@ The old `recent_history_count` option applies only to v1.
 History consists of deduplicated JSON records under `runs/.story-history`. The model
 receives bounded title/frequency sets and short one-line concept signatures, **never
 full old narration**. History appears once in candidate/critic prompts as occupied
-territory, not inspiration. Brief/narration expansion does not receive negative history.
+territory, not inspiration. Simulation/narration expansion does not receive negative history.
 Use `--history-dir` for a shared index or an isolated experiment. Local signature matching
 uses small word/phrase normalizations; the critic handles broader paraphrases. Neither
 is a mathematical guarantee of originality, and there is no vector database.
 
 `import-story-history` accepts run roots, individual run directories, `story.json`, or
-`manifest.json`. It merges completed v1/v2 stories, skips unfinished runs, upgrades old
+`manifest.json`. It merges completed v1/v2/v3 stories, skips unfinished runs, upgrades old
 compact metadata, and is idempotent. It neither regenerates content nor rewrites source
 runs. The original v1 templates/catalogue/mock remain solely for explicit legacy runs
-and cache compatibility; v2 production generation does not read their creative banks.
+and cache compatibility; v2/v3 production generation does not read their creative banks.
 
 ### Inspect, resume and regenerate
 
@@ -173,7 +216,11 @@ Each run keeps the existing `manifest.json` plus a typed `story.json`. The latte
 broad seeds, all candidate rounds, scores, nearest matches, rejection reasons, selections,
 reel reviews, briefs, narration, visual variables, settings, prompt snapshots and provenance.
 `story_review.txt` shows the same development decisions in readable form, including failed
-runs. Exact requests/responses are checkpointed under `story_requests/`.
+runs. Exact requests/responses, including the stage's reasoning effort, are checkpointed
+under `story_requests/`. Each save also exports `world_spec.json`, `world_review.json`,
+`narration_candidates.json`, `narration_selection.json` and `narration_travelogue.json`.
+The readable review shows all paragraphs, scores, rejection reasons and the selection.
+Legacy briefings retain `narration_grounding.json` and `narration_review.json`.
 
 Per-save `cartridge_values.json`, `broll_values.json`, `motion_values.json` and compiled
 prompts retain the existing downstream contracts. The normal Reel manifest references
@@ -181,14 +228,17 @@ story state by checksum and records template/provider/model provenance. No exist
 cartridge/b-roll templates, UI, rendering, narration or MiniMax code is redesigned.
 
 ```sh
-save-reel resume-concepts runs/survival-v2-001
-save-reel regenerate-concepts runs/survival-v2-001 --scope save \
+save-reel resume-concepts runs/survival-v3-001
+save-reel regenerate-concepts runs/survival-v3-001 --scope save \
   --save-id save_03 --run-id revised-world
-save-reel regenerate-concepts runs/survival-v2-001 --scope candidates \
+save-reel regenerate-concepts runs/survival-v3-001 --scope candidates \
   --save-id save_03 --run-id new-alternatives
-save-reel regenerate-concepts runs/survival-v2-001 --scope narration \
+save-reel regenerate-concepts runs/survival-v3-001 --scope narration \
   --save-id save_03 --run-id revised-words
-save-reel regenerate-concepts runs/survival-v2-001 --scope reel --run-id fresh-reel
+# Apply the new style to a previously approved v3 briefing world, changing just one save.
+save-reel regenerate-concepts runs/survival-v3-001 --scope narration \
+  --save-id save_03 --narration-style sol --run-id sol-words
+save-reel regenerate-concepts runs/survival-v3-001 --scope reel --run-id fresh-reel
 ```
 
 Regeneration forks the source run. Unchanged saves remain frozen; narration-only changes
@@ -198,16 +248,26 @@ resume; remote idempotency is not claimed. A run lock prevents concurrent genera
 A batch stops on failure, leaving a review and checkpoints; resume or regenerate that
 run, then start remaining episodes with a fresh prefix. `--quiet` prints review paths.
 
-V1 runs still load, review, resume and regenerate using their saved v1 rules. To use the
-new creative process, create a new v2 run rather than silently changing an old cache.
+Existing v1/v2/v3 runs load and resume using their saved rules and request behavior.
+New v3 runs default to the Sol writer. Narration-only regeneration preserves the saved style;
+use `--narration-style sol` to explicitly upgrade one approved v3 world. That flag
+is valid only with `--scope narration`. Its other three saves, world simulation, novelty
+selection and visual variables stay frozen. Resume never silently upgrades cached prose.
 A procedural `--seed` reproduces broad constraints given the same history; cached text
 is the source of exact model-output reproducibility.
 
 Provider adapters still implement `generate(stage, prompt, context, response_type)`.
 The OpenAI adapter continues to use [Responses structured outputs](https://developers.openai.com/api/docs/guides/structured-outputs)
-with Pydantic. The new creative instructions live in `prompts/story_*/v2.txt`, including
-`story_reel_review/v2.txt`; schemas live in `story_models.py`, acceptance checks in
-`story_novelty.py`, and bounded replacement in `story_development.py`. Live writing
+with Pydantic. World instructions remain in `prompts/story_*/v3.txt`. Narration is versioned
+separately in `prompts/story_narration_description/v3.txt`,
+`prompts/story_narration_prose_candidate/v3.txt`, and
+`prompts/story_narration_prose_selection/v3.txt`. The candidate template preserves the
+user's supplied writing prompt and example. Old v1/v2 narration prompts remain for cached
+runs. Simple prose contracts live in
+`story_prose_models.py`; shared narration state and selection live in
+`story_narration_models.py` and `story_travelogue.py`; the existing bridge remains in
+`story_simulation.py`. Novelty checks in `story_novelty.py`,
+history storage and candidate replacement in `story_development.py` keep their behavior. Live writing
 quality should be reviewed using the OpenAI command above; fixture tests prove workflow
 behavior and rejection logic rather than literary quality.
 
