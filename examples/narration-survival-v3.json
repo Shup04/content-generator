@@ -1,0 +1,21 @@
+{
+  "intro": "You have died. You must pick a game cartridge to be reincarnated into.",
+  "games": [
+    {
+      "title": "DEEP END",
+      "text": "Drink from the fountains, not the pools.\nGrow food in trays behind the changing rooms.\nSleep in the warm upper lounge.\nWhen waterfalls weaken, avoid pools and slides.\nThe purge currents can hold you underwater."
+    },
+    {
+      "title": "SUNROOM LINE",
+      "text": "Sleep aboard the tram.\nGather roots and water during calm stops.\nBoard at the first bell.\nThe tram leaves before the gust.\nMiss it, and you're stranded.\nEvery supply stop permanently cools the cabin."
+    },
+    {
+      "title": "VELVET ORCHARD",
+      "text": "Pick peaches before dusk.\nBoil collected water before drinking.\nSleep in the service arcade.\nIf the roof starts ticking, take the covered passage.\nFalling glass makes supplies harder to reach."
+    },
+    {
+      "title": "SIGNAL 03",
+      "text": "Collect food and water from the nearest stocked locker.\nStay on intact tiles.\nTurn back when tiles pale.\nCross outside before zero three goes dark.\nEvery reset removes floor, eventually cutting off supplies."
+    }
+  ]
+}

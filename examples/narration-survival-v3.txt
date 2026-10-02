@@ -1,0 +1,28 @@
+DEEP END
+Drink from the fountains, not the pools.
+Grow food in trays behind the changing rooms.
+Sleep in the warm upper lounge.
+When waterfalls weaken, avoid pools and slides.
+The purge currents can hold you underwater.
+
+SUNROOM LINE
+Sleep aboard the tram.
+Gather roots and water during calm stops.
+Board at the first bell.
+The tram leaves before the gust.
+Miss it, and you're stranded.
+Every supply stop permanently cools the cabin.
+
+VELVET ORCHARD
+Pick peaches before dusk.
+Boil collected water before drinking.
+Sleep in the service arcade.
+If the roof starts ticking, take the covered passage.
+Falling glass makes supplies harder to reach.
+
+SIGNAL 03
+Collect food and water from the nearest stocked locker.
+Stay on intact tiles.
+Turn back when tiles pale.
+Cross outside before zero three goes dark.
+Every reset removes floor, eventually cutting off supplies.

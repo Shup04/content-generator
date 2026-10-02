@@ -1,0 +1,21 @@
+{
+  "intro": "You have died. You must pick a game cartridge to be reincarnated into.",
+  "games": [
+    {
+      "title": "DEEP END",
+      "text": "You tend the small staff grow trays and harvest what they produce, an ordinary task in this empty indoor water park. The plant keeps the building warm, and the pools keep circulating. During a purge, you stay out of the pools and slide channels and wait until the waterfalls resume and the current stops."
+    },
+    {
+      "title": "SUNROOM LINE",
+      "text": "During calm stops, you're gathering roots beside the platforms, then settling back into the tram's heated cabin. Each time the door opens for supplies, some of that warmth is lost for good. You keep making that trip between the platform and the tram, while the cabin gradually gets colder."
+    },
+    {
+      "title": "VELVET ORCHARD",
+      "text": "You spend the morning picking firm peaches directly from the tree and carrying them to the arcade, where they can be kept before dusk. Condensation runs down intact roof panels into covered tubs. When the tree’s shadow reaches the burgundy runner, you take the concrete-roofed passage to the arcade."
+    },
+    {
+      "title": "SIGNAL 03",
+      "text": "The corridor is unnaturally sunlit even at night, and the frame stays open for 23 hours before its one-hour closure. You use that stretch to visit the fixed locker for its sealed day of food, then wait in exposed grass during the closure and return when the frame reopens."
+    }
+  ]
+}

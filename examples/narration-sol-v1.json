@@ -1,0 +1,21 @@
+{
+  "intro": "You have died. You must pick a game cartridge to be reincarnated into.",
+  "games": [
+    {
+      "title": "DEEP END",
+      "text": "You get to know Deep End by its dry perimeter route, carrying supplies between the staff areas, fountains, and upper lounge during quiet intervals. The changing areas give you somewhere dry to sleep, and the grow trays provide a small harvest to supplement the dwindling pantry stores. There’s an EXIT sign in the distance, but it hangs above a wall. You haven’t found a way out, so those familiar spaces become home."
+    },
+    {
+      "title": "SUNROOM LINE",
+      "text": "You get used to sleeping between stops, with the lasting sunset outside and HOME on the tram’s display. The hillside platforms give you time to collect roots and water, as long as their pinwheels stay still. When the first bell sounds, you stop gathering and board; the blue bench won’t shelter you from the gusts that follow. Once you’re inside, you can settle back into the cabin for the next downhill stretch."
+    },
+    {
+      "title": "VELVET ORCHARD",
+      "text": "Your days are mostly spent between the peach tree and the masonry arcade, picking ripe fruit and bringing back water to boil. There’s time to sort through abandoned suitcases for tools or better bedding, though the roots make carrying things across the floor awkward. By dusk, you settle into the arcade, beyond the glass roof’s reach. Once the tree’s shadow touches the burgundy runner, you leave any unfinished work for morning."
+    },
+    {
+      "title": "SIGNAL 03",
+      "text": "You spend most of your time in the dry corridor near the lift frame, with blue lockers along the walls and sunlight that never looks right. Every day, you walk twenty metres to the stocked locker for sealed food and three litres of water. There is plenty of time to eat and rest, but when the 03 display starts flickering, you get ready to leave. You spend the closed hour outside in the grass."
+    }
+  ]
+}

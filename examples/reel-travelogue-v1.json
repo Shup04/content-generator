@@ -1,0 +1,80 @@
+{
+  "opener": {
+    "display_font_file": null,
+    "system_font_file": null,
+    "background": "#040508",
+    "text_color": "#e4e8eb",
+    "system_color": "#b6c1c9",
+    "star_color": "#ffffff",
+    "separation_color": "#aab8c5",
+    "system_opacity": 0.78,
+    "bracket_opacity": 0.2,
+    "separation_opacity": 0.075,
+    "star_opacity_min": 0.18,
+    "star_opacity_max": 0.65,
+    "star_count": 72,
+    "star_seed": 2003,
+    "star_radius_min": 0.6,
+    "star_radius_max": 1.8,
+    "star_drift": 5.0,
+    "star_drift_speed": 0.12,
+    "overscan": 24,
+    "card_width": 492,
+    "card_height": 328,
+    "column_x": [
+      30,
+      558
+    ],
+    "row_y": [
+      635,
+      1055
+    ],
+    "label_gap": 38,
+    "label_size": 25,
+    "bracket_length": 20,
+    "bracket_stroke": 2,
+    "bracket_inset": 8,
+    "halo_padding": 30,
+    "choice_label_y": 250,
+    "choice_label_size": 25,
+    "countdown_y": 310,
+    "countdown_size": 152,
+    "intro_center_y": 900,
+    "intro_first_size": 76,
+    "intro_second_size": 58,
+    "intro_wrap": 32,
+    "intro_alignment": "C",
+    "intro_line_spacing": 16
+  },
+  "width": 1080,
+  "height": 1920,
+  "fps": 24,
+  "intro_seconds": 4,
+  "countdown_seconds": 5,
+  "clip_seconds": 24,
+  "show_clip_titles": true,
+  "countdown_volume": 0.22,
+  "bobbing": [
+    {
+      "speed": 1.1,
+      "phase": 0.0,
+      "amplitude": 7.0
+    },
+    {
+      "speed": 1.0,
+      "phase": 1.4,
+      "amplitude": 8.0
+    },
+    {
+      "speed": 1.2,
+      "phase": 2.7,
+      "amplitude": 6.0
+    },
+    {
+      "speed": 0.9,
+      "phase": 4.0,
+      "amplitude": 8.0
+    }
+  ],
+  "loop_short_clips": true
+}
