@@ -43,6 +43,7 @@ class RenderSettings(Model):
     intro_seconds: Annotated[float, Field(gt=0, le=30, allow_inf_nan=False)] = 4
     countdown_seconds: Annotated[int, Field(ge=1, le=10)] = 5
     clip_seconds: Annotated[float, Field(gt=0, le=60, allow_inf_nan=False)] = 5
+    loop_short_clips: bool = False
     # Retained to load previous manifests; console UI reads only the opener tokens.
     background_color: Annotated[str, Field(pattern=r"^#[0-9a-fA-F]{6}$")] = "#0d152b"
     heading: Text = "CHOOSE YOUR SAVE"

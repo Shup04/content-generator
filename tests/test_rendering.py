@@ -340,6 +340,37 @@ def test_checksum_failure_does_not_create_render_run(local_assets, tmp_path):
     assert not (tmp_path / "renders").exists()
 
 
+def test_short_clips_require_opt_in_and_loop_to_full_reveal(local_assets, tmp_path):
+    _, sources, collection, colours = local_assets
+    renderer = ReelRenderer()
+    settings = RenderSettings(
+        width=216, height=384, intro_seconds=1, countdown_seconds=1, clip_seconds=2.5
+    )
+    original = {
+        path: hashlib.sha256(path.read_bytes()).hexdigest()
+        for path in sources.glob("*/broll_video.mp4")
+    }
+    with pytest.raises(MediaError, match="shorter"):
+        renderer.render(
+            collection, settings, source_runs_dir=sources, runs_dir=tmp_path, run_id="rejected"
+        )
+    assert not (tmp_path / "rejected").exists()
+
+    settings.loop_short_clips = True
+    output = renderer.render(
+        collection, settings, source_runs_dir=sources, runs_dir=tmp_path, run_id="looped"
+    )
+    info = probe_media(output)
+    video = next(s for s in info["streams"] if s["codec_type"] == "video")
+    assert float(info["format"]["duration"]) == pytest.approx(12, abs=1 / 24)
+    assert int(video["nb_frames"]) == 288
+    for index, expected in enumerate(colours):
+        # Check footage well beyond the one-second source duration, in every reveal.
+        actual = pixel(frame(output, 2 + index * 2.5 + 2.25), 100, 190)
+        assert all(abs(a - b) < 12 for a, b in zip(actual, expected, strict=True))
+    assert original == {path: hashlib.sha256(path.read_bytes()).hexdigest() for path in original}
+
+
 def test_encode_failure_is_recorded(local_assets, tmp_path, monkeypatch):
     _, sources, collection, _ = local_assets
 

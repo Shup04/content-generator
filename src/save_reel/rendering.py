@@ -202,9 +202,11 @@ class ReelRenderer:
                 path = self._source(broll_store, broll.artifacts["video"])
                 info = probe_media(path, self.ffprobe)
                 videos = [v for v in info.get("streams", []) if v.get("codec_type") == "video"]
-                if not videos or float(videos[0].get("duration", info["format"]["duration"])) < (
-                    settings.clip_seconds - 0.001
-                ):
+                if not videos:
+                    raise MediaError(f"B-roll has no video stream: {path}")
+                if not settings.loop_short_clips and float(
+                    videos[0].get("duration", info["format"]["duration"])
+                ) < settings.clip_seconds - 0.001:
                     raise MediaError(
                         f"B-roll is shorter than {settings.clip_seconds} seconds: {path}"
                     )
@@ -305,6 +307,7 @@ class ReelRenderer:
                         encode_stage(
                             name,
                             [
+                                *(["-stream_loop", "-1"] if settings.loop_short_clips else []),
                                 "-i",
                                 f"inputs/save_{number:02}/broll_{clip_number:02}.mp4",
                             ],
