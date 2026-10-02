@@ -48,6 +48,11 @@ def run_narration_command(args) -> Path:
                 subtitles=not args.no_subtitles,
             )
             store = pipeline.prepare(
-                args.render_run, script, settings, runs_dir=args.runs_dir, run_id=args.run_id
+                args.render_run,
+                script,
+                settings,
+                runs_dir=args.runs_dir,
+                run_id=args.run_id,
+                reuse_speech_dir=args.reuse_speech_run,
             )
         return pipeline.execute(store)

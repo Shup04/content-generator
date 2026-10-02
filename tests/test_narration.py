@@ -19,6 +19,8 @@ from save_reel.narration_models import (
     SpeechMetadata,
     SpeechSettings,
 )
+from save_reel.opener import timed_intro_captions
+from save_reel.opener_style import INTRO_SCRIPT
 from save_reel.providers.media import MediaError
 from save_reel.providers.speech import GeneratedSpeech
 from save_reel.render_models import RenderSettings
@@ -168,7 +170,7 @@ def narration_assets(local_assets):  # noqa: F811 -- pytest injects the imported
         capture_output=True,
     )
     script = NarrationScript(
-        intro="Welcome.",
+        intro=INTRO_SCRIPT,
         games=[{"title": g.title, "text": "Enter this world."} for g in collection.games],
     )
     return output.parent, tone.read_bytes(), script
@@ -198,8 +200,11 @@ def test_real_mix_subtitles_and_keyless_cached_resume(narration_assets, tmp_path
     assert provider.calls == 5
     assert run.status == StageStatus.COMPLETED
     assert all(cue.attempted and cue.stage.status == StageStatus.COMPLETED for cue in run.cues)
-    assert float(probe_media(output)["format"]["duration"]) == pytest.approx(4, abs=1 / 24)
-    assert (store.run_dir / "subtitles.srt").read_text().count("-->") == 5
+    intro_end = run.effective_intro_seconds
+    assert float(probe_media(output)["format"]["duration"]) == pytest.approx(
+        intro_end + 3, abs=1 / 24
+    )
+    assert (store.run_dir / "subtitles.srt").read_text().count("-->") == 6
     assert "drawtext" in (store.run_dir / "mix_filter.txt").read_text()
 
     # Check actual burned captions, not just filter construction.
@@ -225,8 +230,14 @@ def test_real_mix_subtitles_and_keyless_cached_resume(narration_assets, tmp_path
             capture_output=True,
         ).stdout
 
-    region = slice(100 * 216 * 3, 116 * 216 * 3)
+    region = slice(155 * 216 * 3, 210 * 216 * 3)
     assert frame(output)[region] != frame(render_dir / "reel.mp4")[region]
+    plan = json.loads((store.run_dir / "speech_plan.json").read_text())
+    assert [c["text"] for c in plan[0]["captions"]] == [
+        "You have died",
+        "You must pick a game cartridge to be reincarnated into",
+    ]
+    assert 0 <= intro_end - plan[0]["captions"][-1]["end"] < 1 / 24
     raw_audio = subprocess.run(
         [
             "ffmpeg",
@@ -254,8 +265,8 @@ def test_real_mix_subtitles_and_keyless_cached_resume(narration_assets, tmp_path
 
     assert peak(0.15, 0.25) > 0.01  # Intro speech
     assert peak(0.5, 0.9) < 0.001
-    assert peak(1.01, 1.1) > 0.01  # Original countdown retained
-    for start in (2.15, 2.65, 3.15, 3.65):
+    assert peak(intro_end + 0.01, intro_end + 0.1) > 0.01  # Countdown follows spoken intro
+    for start in (intro_end + 1.15 + i * 0.5 for i in range(4)):
         assert peak(start, start + 0.1) > 0.01
     assert hashlib.sha256((render_dir / "reel.mp4").read_bytes()).hexdigest() == original
     monkeypatch.delenv("ELEVENLABS_API_KEY", raising=False)
@@ -341,3 +352,51 @@ def test_cli_missing_key_creates_no_run(tmp_path, monkeypatch):
         == 1
     )
     assert not (tmp_path / "runs").exists()
+
+
+def test_intro_captions_use_two_complete_sentences_and_respect_pause():
+    text = INTRO_SCRIPT.split()
+    words = [
+        {
+            "text": word,
+            "start": i * 0.2 + (0.5 if i >= 3 else 0),
+            "end": (i + 1) * 0.2 + (0.5 if i >= 3 else 0),
+        }
+        for i, word in enumerate(text)
+    ]
+    captions = timed_intro_captions(words)
+    assert len(captions) == 2
+    assert captions[0]["end"] == pytest.approx(0.6)
+    assert captions[1]["start"] == pytest.approx(1.1)
+    assert captions[1]["end"] == words[-1]["end"]
+    words[-1]["text"] = "something-else"
+    with pytest.raises(ValueError, match="must match"):
+        timed_intro_captions(words)
+
+
+def test_reuse_copies_matching_speech_and_generates_only_changed_line(narration_assets, tmp_path):
+    render_dir, audio, script = narration_assets
+    original = NarrationPipeline(FakeSpeech(audio))
+    settings = SpeechSettings(voice_id="test")
+    cached = original.prepare(render_dir, script, settings, runs_dir=tmp_path, run_id="cached")
+    original.execute(cached)
+    updated = script.model_copy(deep=True)
+    updated.games[0].text = "A different reveal."
+    provider = FakeSpeech(audio)
+    pipeline = NarrationPipeline(provider)
+    store = pipeline.prepare(
+        render_dir,
+        updated,
+        settings,
+        runs_dir=tmp_path,
+        run_id="updated",
+        reuse_speech_dir=cached.run_dir,
+    )
+    pending = pipeline.load(store)
+    assert [c.audio is not None for c in pending.cues] == [True, False, True, True, True]
+    assert pending.reused_speech_run_id == "cached"
+    pipeline.execute(store)
+    assert provider.calls == 1
+    assert (store.run_dir / "speech/save_02.mp3").read_bytes() == (
+        cached.run_dir / "speech/save_02.mp3"
+    ).read_bytes()

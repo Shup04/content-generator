@@ -6,7 +6,7 @@ from typing import Annotated, Literal
 from pydantic import Field, model_validator
 
 from save_reel.models import Artifact, Model, RunId, StageState, StageStatus, Text, utc_now
-from save_reel.render_models import RenderRun
+from save_reel.render_models import RenderRun, TimelineSegment
 
 Seconds = Annotated[float, Field(ge=0, allow_inf_nan=False)]
 ScriptText = Annotated[Text, Field(max_length=500)]
@@ -101,6 +101,9 @@ class NarrationRun(Model):
     script: NarrationScript
     settings: SpeechSettings
     cues: tuple[NarrationCue, ...]
+    reused_speech_run_id: RunId | None = None
+    effective_intro_seconds: Seconds | None = None
+    timeline: tuple[TimelineSegment, ...] = ()
     status: StageStatus = StageStatus.PENDING
     stages: dict[str, StageState] = Field(default_factory=dict)
     artifacts: dict[str, Artifact] = Field(default_factory=dict)

@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import math
 import re
 import shutil
 import textwrap
@@ -17,11 +18,18 @@ from save_reel.narration_models import (
     SpeechSettings,
     narration_cues,
 )
+from save_reel.opener import (
+    opener_filter,
+    opener_inputs,
+    timed_intro_captions,
+    write_intro_captions,
+)
+from save_reel.opener_style import INTRO_SCRIPT
 from save_reel.pipeline import run_logging
 from save_reel.providers.media import MediaError
 from save_reel.providers.speech import SpeechProvider
-from save_reel.render_models import RenderRun
-from save_reel.rendering import ReelRenderer, draw_text, probe_media
+from save_reel.render_models import RenderRun, build_timeline
+from save_reel.rendering import ReelRenderer, draw_text, probe_media, write_countdown_audio
 from save_reel.storage import RunStore
 
 
@@ -109,6 +117,7 @@ def speech_plan(
         "tempo": tempo,
         "offset": offset,
         "captions": captions,
+        "words": words,
     }
 
 
@@ -165,6 +174,7 @@ class NarrationPipeline:
         *,
         runs_dir: Path = Path("runs"),
         run_id: str | None = None,
+        reuse_speech_dir: Path | None = None,
     ) -> RunStore:
         self._check_tools()
         source = RunStore(render_dir)
@@ -172,6 +182,9 @@ class NarrationPipeline:
         if render.status != StageStatus.COMPLETED or render.run_id != render_dir.name:
             raise MediaError("A completed matching render run is required")
         cues = narration_cues(render, script)
+        console = "ui_display_font" in render.artifacts
+        if console and script.intro != INTRO_SCRIPT:
+            raise MediaError(f"Console intro script must be: {INTRO_SCRIPT}")
         video = checked_bytes(source, render.artifacts["reel"])
         font = checked_bytes(source, render.artifacts["font"])
         store = RunStore.create(runs_dir, run_id)
@@ -187,6 +200,49 @@ class NarrationPipeline:
         run.artifacts["script"] = store.write_text(
             "script.json", script.model_dump_json(indent=2), "application/json"
         )
+        if console:
+            for key, artifact in render.artifacts.items():
+                if (
+                    key.startswith("ui_")
+                    or artifact.path.endswith("/cartridge.png")
+                    or key.startswith(("text/save_", "text/count"))
+                ):
+                    run.artifacts[key] = store.write_bytes(
+                        artifact.path, checked_bytes(source, artifact), artifact.media_type
+                    )
+        if reuse_speech_dir:
+            cached_store = RunStore(reuse_speech_dir)
+            cached = self.load(cached_store)
+            generation_fields = {"voice_id", "model_id", "speed", "stability", "similarity_boost"}
+            if cached.settings.model_dump(include=generation_fields) != settings.model_dump(
+                include=generation_fields
+            ):
+                raise MediaError("Cached speech voice/model/settings do not match this narration")
+            run.reused_speech_run_id = cached.run_id
+            for cue in run.cues:
+                match = next(
+                    (
+                        c
+                        for c in cached.cues
+                        if c.cue_id == cue.cue_id
+                        and c.text == cue.text
+                        and c.stage.status == StageStatus.COMPLETED
+                    ),
+                    None,
+                )
+                if match and match.audio and match.metadata:
+                    cue.audio = store.write_bytes(
+                        f"speech/{cue.cue_id}.mp3",
+                        checked_bytes(cached_store, match.audio),
+                        "audio/mpeg",
+                    )
+                    cue.metadata = store.write_bytes(
+                        f"speech/{cue.cue_id}.json",
+                        checked_bytes(cached_store, match.metadata),
+                        "application/json",
+                    )
+                    cue.attempted = True
+                    cue.stage = match.stage.model_copy(deep=True)
         self._save(store, run)
         return store
 
@@ -284,20 +340,41 @@ class NarrationPipeline:
 
     def _compose(self, store: RunStore, run: NarrationRun, logger) -> None:
         plans, inputs = [], []
+        console = "ui_display_font" in run.artifacts
+        settings = run.source_render.settings.model_copy(deep=True)
         for cue in run.cues:
             metadata = SpeechMetadata.model_validate_json(checked_bytes(store, cue.metadata))
             info = probe_media(store.run_dir / cue.audio.path, self.renderer.ffprobe)
             if not any(s.get("codec_type") == "audio" for s in info.get("streams", [])):
                 raise MediaError(f"{cue.cue_id}: generated file has no audio stream")
-            plan = speech_plan(
-                cue, metadata, float(info["format"]["duration"]), run.settings.max_tempo
-            )
+            audio_duration = float(info["format"]["duration"])
+            if console and cue.cue_id == "intro":
+                # Let the voice set the opening length instead of compressing it to a fixed slot.
+                natural = cue.model_copy(update={"duration": audio_duration + 1})
+                plan = speech_plan(natural, metadata, audio_duration, run.settings.max_tempo)
+                plan["captions"] = timed_intro_captions(plan["words"])
+                settings.intro_seconds = (
+                    math.ceil(plan["captions"][-1]["end"] * settings.fps) / settings.fps
+                )
+                run.effective_intro_seconds = settings.intro_seconds
+                run.timeline = build_timeline(run.source_render.collection, settings)
+                shifted = narration_cues(
+                    run.source_render.model_copy(
+                        update={"settings": settings, "timeline": run.timeline}
+                    ),
+                    run.script,
+                )
+                for saved, new in zip(run.cues, shifted, strict=True):
+                    saved.start, saved.duration = new.start, new.duration
+            else:
+                plan = speech_plan(cue, metadata, audio_duration, run.settings.max_tempo)
             plans.append(plan)
             inputs.extend(["-i", cue.audio.path])
             logger.info(
                 "Fitting %s at %.2fx, starting %.2fs", cue.cue_id, plan["tempo"], plan["offset"]
             )
-        total = run.source_render.timeline[-1].start + run.source_render.timeline[-1].duration
+        timeline = run.timeline or run.source_render.timeline
+        total = timeline[-1].start + timeline[-1].duration
         captions = [caption for plan in plans for caption in plan["captions"]]
         run.artifacts["plan"] = store.write_text(
             "speech_plan.json", json.dumps(plans, indent=2), "application/json"
@@ -348,15 +425,75 @@ class NarrationPipeline:
             "narration.wav", (store.run_dir / "narration.wav").read_bytes(), "audio/wav"
         )
         self._save(store, run)
+        extra_inputs = []
+        video_graph = ""
+        video_source = "0:v"
+        base_audio = "0:a"
+        if console:
+            intro_captions = plans[0]["captions"]
+            run.artifacts.update(write_intro_captions(store, settings.opener, intro_captions))
+            graph = opener_filter(settings, intro_captions)
+            run.artifacts["opener_filter"] = store.write_text("opener_filter.txt", graph)
+            (store.run_dir / "opener.mp4").unlink(missing_ok=True)
+            self.renderer._ffmpeg(
+                store,
+                "synced_opener",
+                [
+                    *opener_inputs(settings),
+                    "-filter_complex",
+                    graph,
+                    "-map",
+                    "[outv]",
+                    "-an",
+                    "-frames:v",
+                    str(
+                        round((settings.intro_seconds + settings.countdown_seconds) * settings.fps)
+                    ),
+                    "-r",
+                    str(settings.fps),
+                    "-c:v",
+                    "libx264",
+                    "-preset",
+                    "fast",
+                    "-crf",
+                    "20",
+                    "-threads",
+                    "2",
+                    "-pix_fmt",
+                    "yuv420p",
+                    "opener.mp4",
+                ],
+            )
+            run.artifacts["opener"] = store.write_bytes(
+                "opener.mp4", (store.run_dir / "opener.mp4").read_bytes(), "video/mp4"
+            )
+            write_countdown_audio(store.run_dir / "countdown.wav", settings, total)
+            run.artifacts["countdown"] = store.write_bytes(
+                "countdown.wav", (store.run_dir / "countdown.wav").read_bytes(), "audio/wav"
+            )
+            extra_inputs = ["-i", "opener.mp4", "-i", "countdown.wav"]
+            base_audio = "3:a"
+            old_start = (
+                run.source_render.settings.intro_seconds
+                + run.source_render.settings.countdown_seconds
+            )
+            video_graph = (
+                f"[0:v]trim=start={old_start},setpts=PTS-STARTPTS[reveals];"
+                "[2:v]setpts=PTS-STARTPTS[opening];"
+                f"[opening][reveals]concat=n=2:v=1:a=0,fps={settings.fps}[composed];"
+            )
+            video_source = "composed"
         mix_graph = (
-            "[0:a]aresample=48000[base];[base][1:a]amix=inputs=2:duration=first:normalize=0,"
+            f"[{base_audio}]aresample=48000[base];[base][1:a]amix=inputs=2:duration=first:normalize=0,"
             "alimiter=limit=0.95:level=false:latency=true[outa]"
         )
         video_args = ["-map", "0:v:0", "-c:v", "copy"]
-        if run.settings.subtitles:
+        if run.settings.subtitles or console:
             scale = run.source_render.settings.width / 1080
             filters = []
             for i, caption in enumerate(captions):
+                if console and (caption["cue_id"] == "intro" or not run.settings.subtitles):
+                    continue
                 name = f"subtitle_{i:03}"
                 content = textwrap.fill(caption["text"], width=32)
                 run.artifacts[name] = store.write_text(f"text/{name}.txt", content)
@@ -371,7 +508,9 @@ class NarrationPipeline:
                     )
                     + f":box=1:boxcolor=black@0.65:boxborderw={max(2, round(12 * scale))}"
                 )
-            mix_graph += ";[0:v]" + ",".join(filters) + "[outv]"
+            mix_graph += (
+                ";" + video_graph + f"[{video_source}]" + (",".join(filters) or "null") + "[outv]"
+            )
             video_args = [
                 "-map",
                 "[outv]",
@@ -395,6 +534,7 @@ class NarrationPipeline:
                 "source.mp4",
                 "-i",
                 "narration.wav",
+                *extra_inputs,
                 "-filter_complex",
                 mix_graph,
                 *video_args,
@@ -418,7 +558,6 @@ class NarrationPipeline:
         info = probe_media(store.run_dir / "reel.partial.mp4", self.renderer.ffprobe)
         video = next(s for s in info["streams"] if s["codec_type"] == "video")
         audio = next(s for s in info["streams"] if s["codec_type"] == "audio")
-        settings = run.source_render.settings
         if (
             abs(float(info["format"]["duration"]) - total) > 1 / settings.fps
             or int(video["nb_frames"]) != round(total * settings.fps)

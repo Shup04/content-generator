@@ -1,0 +1,21 @@
+{
+  "intro": "You have died. You must pick a game cartridge to be reincarnated into.",
+  "games": [
+    {
+      "title": "DEEP END",
+      "text": "Deep End. The water is warm. The exit never gets closer."
+    },
+    {
+      "title": "SUNROOM LINE",
+      "text": "Sunroom Line. The tram takes you somewhere safe. Leave whenever you're ready."
+    },
+    {
+      "title": "VELVET ORCHARD",
+      "text": "Velvet Orchard. Taste your happiest memory. The orchard keeps it forever."
+    },
+    {
+      "title": "SIGNAL 03",
+      "text": "Signal zero three. A lost save... or someone else's life?"
+    }
+  ]
+}

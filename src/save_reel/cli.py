@@ -126,6 +126,8 @@ def build_parser() -> argparse.ArgumentParser:
     narrate.add_argument("--model", default="eleven_multilingual_v2")
     narrate.add_argument("--speed", type=float, default=1.0)
     narrate.add_argument("--no-subtitles", action="store_true")
+    narrate.add_argument("--reuse-speech-run", type=Path,
+                        help="Reuse matching recordings from a previous narration run")
     resume_narration = commands.add_parser(
         "resume-narration", help="Reuse saved speech and finish narration assembly"
     )
