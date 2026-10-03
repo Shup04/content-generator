@@ -1,0 +1,21 @@
+TWO VISUAL BEATS FROM ONE WORLD
+
+In environment.broll_beats supply exactly two structured visual beats. Do not
+write final image prompts. Existing deterministic image and motion templates
+control the period game style, framing format, palette and rendering rules.
+
+First: type establishing. Show a wide view that introduces the world.
+Second: type detail. Move to a different area or viewpoint and focus on one
+specific object, resource, route or daily task from the approved survival facts.
+Prefer a fact likely to matter in narration. Do not invent a new world mechanic.
+
+Each beat needs description, shot_composition and camera_motion. Describe the
+visible area rather than restating the whole world. Make the two shots materially
+different in camera angle, framing, visible area and focal subject. The second
+must not simply zoom into the first. Keep location identity, time, palette,
+materials and era consistent across both. Only the selected area needs to appear
+in each frame; the rest of the environment is context, not a checklist to show.
+
+Use restrained five-second motion: a gentle forward drift in the establishing
+shot and a slow lateral move in the detail shot. Preserve geometry and game style,
+with subtle existing environmental movement, no dramatic action or scene invention.

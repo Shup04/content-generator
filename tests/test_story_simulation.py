@@ -142,12 +142,173 @@ def test_unapproved_world_cannot_reach_narration(tmp_path):
     workflow = StoryWorkflow(provider)
     with pytest.raises(ValueError, match="world simulation approval exhausted"):
         workflow.create(ConceptRequest(), runs_dir=tmp_path, run_id="rejected",
-                        settings=StorySettings(validation_retries=1))
+                        settings=StorySettings(validation_retries=1, max_world_replacements=0))
     assert not any(c["stage"].startswith("narration") for c in provider.calls)
     assert sum(c["stage"] == "world_simulation" for c in provider.calls) == 2
     saved = workflow.load(tmp_path / "rejected")
     assert len(saved.saves[0].world_attempts) == 2
     assert "warning cannot detect" in (tmp_path / "rejected/story_review.txt").read_text()
+
+
+@pytest.mark.parametrize("workers", [1, 4])
+def test_exhausted_world_replaces_only_failed_concept_and_rechecks_diversity(tmp_path, workers):
+    class RejectFirstConcept(SpyProvider):
+        def generate(self, **kwargs):
+            value = super().generate(**kwargs)
+            if kwargs["stage"] == "world_review" and (
+                kwargs["context"]["selected"]["candidate_id"] == "save_01_candidate_1"
+            ):
+                value.practical_system = False
+                value.issues = ("The fixed rule does not protect you from the threat.",)
+            return value
+
+    provider = RejectFirstConcept()
+    workflow = StoryWorkflow(provider, max_workers=workers)
+    run = workflow.create(ConceptRequest(), runs_dir=tmp_path, run_id="recovered",
+                          settings=StorySettings(validation_retries=1))
+    slot = run.saves[0]
+    assert slot.selected.candidate_id == "save_01_candidate_2"
+    assert len(slot.world_replacements) == 1
+    replaced = slot.world_replacements[0]
+    assert replaced.concept.candidate_id == "save_01_candidate_1"
+    assert len(replaced.attempts) == 2
+    assert len(slot.world_attempts) == 1
+    assert not slot.assessments[replaced.concept.candidate_id].accepted
+    assert "fixed rule" in review_text(run)
+    assert replaced.concept.title in review_text(run)
+    assert len(run.reel_review_history) == 2
+    assert not run.frozen_save_ids  # Protection is derived, not a persistent regeneration flag.
+    for sibling in run.saves[1:]:
+        assert len(sibling.world_attempts) == 1
+        assert not sibling.world_replacements
+        calls = [c for c in provider.calls if c["stage"] == "world_simulation"
+                 and c["context"]["save_id"] == sibling.save_id]
+        assert len(calls) == 1
+    if workers == 4:
+        reviews = [c for c in provider.calls if c["stage"] == "reel_review"]
+        assert reviews[-1]["context"]["frozen_save_ids"] == ["save_02", "save_03", "save_04"]
+    provider.calls.clear()
+    assert workflow.resume(tmp_path / "recovered") == run
+    assert not provider.calls
+
+
+def test_world_replacement_budget_is_persisted_and_resume_does_not_spend_again(tmp_path):
+    class RejectWorld(SpyProvider):
+        def generate(self, **kwargs):
+            value = super().generate(**kwargs)
+            if kwargs["stage"] == "world_review":
+                value.practical_system = False
+                value.issues = ("The warning cannot detect the threat.",)
+            return value
+
+    provider = RejectWorld()
+    workflow = StoryWorkflow(provider)
+    with pytest.raises(ValueError, match="Automatic world replacement limit reached") as error:
+        workflow.create(ConceptRequest(), runs_dir=tmp_path, run_id="bounded-world",
+                        settings=StorySettings(validation_retries=1))
+    assert "warning cannot detect" in str(error.value)
+    saved = workflow.load(tmp_path / "bounded-world")
+    assert saved.saves[0].selected.title in str(error.value)
+    assert len(saved.saves[0].world_replacements) == 1
+    assert len(saved.saves[0].world_attempts) == 2
+    assert sum(c["stage"] == "world_simulation" for c in provider.calls) == 4
+    assert not any(c["stage"].startswith("narration") for c in provider.calls)
+    provider.calls.clear()
+    with pytest.raises(ValueError, match="Automatic world replacement limit reached"):
+        workflow.resume(tmp_path / "bounded-world")
+    assert not provider.calls
+
+
+def test_resume_old_exhausted_checkpoint_keeps_approved_siblings(tmp_path):
+    class RejectFirstConcept(SpyProvider):
+        def generate(self, **kwargs):
+            value = super().generate(**kwargs)
+            if kwargs["stage"] == "world_review" and (
+                kwargs["context"]["selected"]["candidate_id"] == "save_01_candidate_1"
+            ):
+                value.practical_system = False
+                value.issues = ("The warning cannot detect the threat.",)
+            return value
+
+    provider = RejectFirstConcept()
+    workflow = StoryWorkflow(provider, max_workers=4)
+    with pytest.raises(ValueError, match="world simulation approval exhausted"):
+        workflow.create(ConceptRequest(), runs_dir=tmp_path, run_id="old-exhausted",
+                        settings=StorySettings(validation_retries=0, max_world_replacements=0))
+    path = tmp_path / "old-exhausted" / "story.json"
+    raw = json.loads(path.read_text())
+    del raw["settings"]["max_world_replacements"]
+    for slot in raw["saves"]:
+        del slot["world_replacements"]
+    path.write_text(json.dumps(raw))
+    before = workflow.load(path.parent)
+    assert all(s.world_review.approved(before.settings.novelty) for s in before.saves[1:])
+    provider.calls.clear()
+    after = workflow.resume(path.parent)
+    for old, new in zip(before.saves[1:], after.saves[1:], strict=True):
+        assert new.world == old.world
+        assert new.world_review == old.world_review
+        assert new.world_attempts == old.world_attempts
+    calls = [c for c in provider.calls if c["stage"] == "world_simulation"]
+    assert [c["context"]["save_id"] for c in calls] == ["save_01"]
+    assert not any(c["stage"] in ("candidates", "review") for c in provider.calls)
+
+
+def test_replacement_interruption_resumes_without_losing_reviews_or_approved_worlds(tmp_path):
+    class InterruptedRecovery(SpyProvider):
+        interrupted = False
+
+        def generate(self, **kwargs):
+            context = kwargs["context"]
+            if kwargs["stage"] == "reel_review" and context["frozen_save_ids"] and (
+                not self.interrupted
+            ):
+                self.interrupted = True
+                raise RuntimeError("Interrupted during replacement diversity review")
+            value = super().generate(**kwargs)
+            if kwargs["stage"] == "world_review" and (
+                context["selected"]["candidate_id"] == "save_01_candidate_1"
+            ):
+                value.practical_system = False
+                value.issues = ("The warning cannot detect the threat.",)
+            return value
+
+    provider = InterruptedRecovery()
+    workflow = StoryWorkflow(provider, max_workers=4)
+    with pytest.raises(RuntimeError, match="Interrupted during replacement"):
+        workflow.create(ConceptRequest(), runs_dir=tmp_path, run_id="replacement-interruption",
+                        settings=StorySettings(validation_retries=0))
+    saved = workflow.load(tmp_path / "replacement-interruption")
+    assert len(saved.saves[0].world_replacements) == 1
+    assert saved.saves[0].world_attempts == ()
+    assert saved.reel_review is None
+    assert all(s.world_review for s in saved.saves[1:])
+    provider.calls.clear()
+    run = workflow.resume(tmp_path / "replacement-interruption")
+    assert run.saves[0].world_replacements == saved.saves[0].world_replacements
+    assert run.saves[0].selected == saved.saves[0].selected
+    assert [c["stage"] for c in provider.calls].count("world_simulation") == 1
+    assert all(s.world == old.world for s, old in zip(run.saves[1:], saved.saves[1:], strict=True))
+
+
+def test_world_replacement_obeys_shared_reel_limit(tmp_path):
+    class RejectWorld(SpyProvider):
+        def generate(self, **kwargs):
+            value = super().generate(**kwargs)
+            if kwargs["stage"] == "world_review":
+                value.practical_system = False
+                value.issues = ("There is no safe shelter.",)
+            return value
+
+    settings = StorySettings(validation_retries=0)
+    settings.novelty.max_reel_replacements = 0
+    provider = RejectWorld()
+    with pytest.raises(ValueError, match="reel diversity replacement limit reached") as error:
+        StoryWorkflow(provider).create(
+            ConceptRequest(), runs_dir=tmp_path, run_id="no-reel-budget", settings=settings,
+        )
+    assert "no safe shelter" in str(error.value)
+    assert sum(c["stage"] == "world_simulation" for c in provider.calls) == 1
 
 
 @pytest.mark.parametrize("problem", ["invented", "decorative", "repetition", "tone"])
@@ -358,7 +519,7 @@ def test_world_revision_retains_earlier_feedback_after_new_objection(tmp_path):
 
 
 @pytest.mark.parametrize("stage, effort", [
-    ("candidates", "high"), ("world_simulation", "high"), ("world_review", "high"),
+    ("candidates", "high"), ("world_simulation", "high"), ("world_review", "medium"),
     ("narration", "medium"), ("narration_review", "medium"),
 ])
 def test_openai_uses_stage_reasoning_effort(stage, effort):
@@ -395,7 +556,7 @@ def test_candidate_effort_override_preserves_world_and_narration_efforts():
     settings = StorySettings(candidate_reasoning_effort="medium")
     assert settings.effort_for("candidates") == "medium"
     assert settings.effort_for("world_simulation") == "high"
-    assert settings.effort_for("world_review") == "high"
+    assert settings.effort_for("world_review") == "medium"
     assert settings.effort_for("narration_prose_candidate") == "medium"
     assert StorySettings().effort_for("candidates") == "high"
     assert StorySettings.model_validate_json(settings.model_dump_json()) == settings

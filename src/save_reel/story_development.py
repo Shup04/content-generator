@@ -6,6 +6,7 @@ from save_reel.story_models import (
     ReelReviewAttempt,
     WorldCandidateReview,
     WorldCandidateSet,
+    WorldReplacement,
 )
 from save_reel.story_novelty import assess_candidate, reel_issues, reel_review_passes
 
@@ -25,8 +26,18 @@ def _eligible(slot):
     ]
 
 
+def protected_save_ids(run):
+    """Approved worlds stay fixed while a failed sibling finds a new concept."""
+    return tuple(
+        s.save_id for s in run.saves
+        if s.save_id in run.frozen_save_ids or s.final or (
+            s.world and s.world_review and s.world_review.approved(run.settings.novelty)
+        )
+    )
+
+
 def _prepare_slot(workflow, run, slot, store, logger):
-    if slot.save_id in run.frozen_save_ids:
+    if slot.save_id in protected_save_ids(run):
         return
     while True:
         if slot.candidates is None:
@@ -98,19 +109,27 @@ def _prepare_slot(workflow, run, slot, store, logger):
         workflow._save(run, store)
 
 
-def _replace(run, save_id, reason, logger):
+def _replace(run, save_id, reason, logger, *, source="reel diversity"):
     if run.reel_replacements >= run.settings.novelty.max_reel_replacements:
         raise ValueError(f"reel diversity replacement limit reached: {reason}")
     slot = next(s for s in run.saves if s.save_id == save_id)
-    if slot.save_id in run.frozen_save_ids:
-        raise ValueError("cannot replace a frozen save")
+    if slot.save_id in protected_save_ids(run):
+        raise ValueError("cannot replace a frozen save or approved world")
     candidate_id = slot.selected.candidate_id
     slot.excluded_candidates += (candidate_id,)
     assessment = slot.assessments[candidate_id]
     slot.assessments[candidate_id] = assessment.model_copy(
-        update={"accepted": False, "reasons": (*assessment.reasons, f"reel diversity: {reason}")}
+        update={"accepted": False, "reasons": (*assessment.reasons, f"{source}: {reason}")}
     )
-    slot.replacement_feedback += (f"Replace this redundant system: {reason}",)
+    slot.replacement_feedback += (f"Replace this rejected system ({source}): {reason}",)
+    if slot.world_attempts or slot.world:
+        slot.world_replacements += (WorldReplacement(
+            concept=slot.selected, candidate_round=slot.candidate_round,
+            attempts=slot.world_attempts, pending_simulation=slot.world, reason=reason,
+        ),)
+        slot.world = None
+        slot.world_review = None
+        slot.world_attempts = ()
     slot.selected = None
     slot.selection_score = None
     run.reel_review = None
@@ -137,7 +156,7 @@ def develop_worlds(workflow, run, store, logger):
             mutable = [
                 s
                 for s in run.saves
-                if s.save_id in involved and s.save_id not in run.frozen_save_ids
+                if s.save_id in involved and s.save_id not in protected_save_ids(run)
             ]
             if not mutable:
                 raise ValueError("frozen saves conflict; regenerate the whole reel")
@@ -168,7 +187,7 @@ def develop_worlds(workflow, run, store, logger):
                     }
                     for s in run.saves
                 ],
-                frozen_save_ids=list(run.frozen_save_ids),
+                frozen_save_ids=list(protected_save_ids(run)),
             )
             run.reel_review_history += (
                 ReelReviewAttempt(
@@ -183,7 +202,9 @@ def develop_worlds(workflow, run, store, logger):
         if reel_review_passes(run.reel_review, run.settings.novelty):
             workflow.progress("diversity", "reel", "completed")
             return
-        mutable = [s for s in run.saves if s.save_id not in run.frozen_save_ids]
+        mutable = [s for s in run.saves if s.save_id not in protected_save_ids(run)]
+        if not mutable:
+            raise ValueError("approved worlds conflict; regenerate the whole reel")
         suggested = next((s for s in mutable if s.save_id == run.reel_review.weakest_save_id), None)
         weakest = suggested or min(mutable, key=lambda s: s.selection_score)
         reason = "; ".join(i.reason for i in run.reel_review.issues) or run.reel_review.rationale
@@ -192,7 +213,7 @@ def develop_worlds(workflow, run, store, logger):
 
 
 def _check_reel_review(run, review):
-    if review.weakest_save_id in run.frozen_save_ids:
+    if review.weakest_save_id in protected_save_ids(run):
         raise ValueError("reel review may only recommend replacing a mutable save")
     for issue in review.issues:
         if len(set(issue.save_ids)) != len(issue.save_ids):

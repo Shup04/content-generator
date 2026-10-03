@@ -8,6 +8,7 @@ from importlib.resources import files
 
 from save_reel.models import TemplateReference
 from save_reel.story_models import ROLES, BroadWorldSeed, HistoryEntry, StorySettings, WorldSeed
+from save_reel.story_tiers import TIER_SEVERITY, TIERS
 
 
 def load_catalog(version: str = "v1") -> tuple[dict, TemplateReference]:
@@ -27,7 +28,7 @@ def make_seeds(
 ):
     catalog, reference = load_catalog(settings.seed_catalog_version)
     if settings.seed_catalog_version != "v1":
-        return _broad_seeds(random_seed, catalog, history, fixed), reference
+        return _broad_seeds(random_seed, catalog, history, fixed, settings), reference
     rng = random.Random(random_seed)
     used_families = {s.setting_family for s in fixed}
     used_dangers = {s.danger_type for s in fixed}
@@ -83,11 +84,14 @@ def make_seeds(
     return tuple(seeds), reference
 
 
-def _broad_seeds(random_seed, catalog, history, fixed):
+def _broad_seeds(random_seed, catalog, history, fixed, settings):
     rng = random.Random(random_seed)
     used = {s.setting_family for s in fixed}
     counts = Counter(h.setting_family for h in history)
     seeds = []
+    tiers = [t for t in TIERS if t not in {s.survivability_tier for s in fixed}]
+    if settings.tier_prompt_version:
+        rng.shuffle(tiers)
     for role in ROLES:
         existing = next((s for s in fixed if s.role == role), None)
         if existing:
@@ -97,14 +101,18 @@ def _broad_seeds(random_seed, catalog, history, fixed):
         rng.shuffle(families)
         family = min(families, key=lambda f: counts[f])
         used.add(family)
+        tier = tiers.pop() if settings.tier_prompt_version else None
         seeds.append(
             BroadWorldSeed(
                 role=role,
+                survivability_tier=tier,
                 setting_family=family,
                 surface_emotion=rng.choice(catalog["surface_emotions"]),
                 deeper_emotion=rng.choice(catalog["deeper_emotions"]),
                 resource_pressure=rng.choice(catalog["resource_pressures"]),
-                severity=rng.randint(7, 9) if role == ROLES[3] else rng.randint(4, 8),
+                severity=rng.randint(*TIER_SEVERITY[tier]) if tier else (
+                    rng.randint(7, 9) if role == ROLES[3] else rng.randint(4, 8)
+                ),
                 era=rng.choice(catalog["eras"]),
                 time_of_day=rng.choice(catalog["times"]),
                 weather=rng.choice(catalog["weather"]),

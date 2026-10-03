@@ -2,6 +2,7 @@
 
 import json
 
+from save_reel.broll_beats import beat_values
 from save_reel.media_models import BrollValues, CartridgeValues, MotionValues
 from save_reel.models import (
     CartridgeSpec,
@@ -71,6 +72,7 @@ class PreparedStoryConceptProvider:
             authored = isinstance(slot.selected, WorldConcept)
             saves.append(
                 SaveGameConcept(
+                    survivability_tier=slot.final.brief.survivability_tier,
                     title=slot.final.brief.title,
                     summary=slot.final.brief.premise,
                     environment=EnvironmentSpec(
@@ -107,6 +109,12 @@ def review_text(run: StoryRun) -> str:
     if run.provider == "mock":
         lines += ["MOCK FIXTURES — not Luna output or a creative-quality evaluation.", ""]
     lines += [f"Status: {run.status.value}", f"Error: {run.error}" if run.error else "", ""]
+    for change in run.world_review_updates:
+        lines += [f"World review policy: {change.previous_prompt.template.version} -> "
+                  f"{change.new_prompt.template.version} ({change.new_effort})"]
+        for save_id, attempts in change.attempts.items():
+            for i, attempt in enumerate(attempts, 1):
+                lines += [f"{save_id} archived review {i}: {attempt.review.model_dump_json()}"]
     if run.reel_review:
         lines += [f"Reel diversity: {run.reel_review.overall:.2f}", run.reel_review.rationale, ""]
     for slot in run.saves:
@@ -114,6 +122,10 @@ def review_text(run: StoryRun) -> str:
             lines += _candidate_debug(slot)
         if run.schema_version == "3.0":
             lines += ["WORLD SIMULATION"]
+            for replacement in slot.world_replacements:
+                lines += [f"Replaced world: {replacement.concept.title}", replacement.reason]
+                for i, attempt in enumerate(replacement.attempts, 1):
+                    lines += [f"Rejected world review {i}: {attempt.review.model_dump_json()}"]
             if slot.world:
                 lines += [json.dumps(slot.world.spec.model_dump(mode="json"), indent=2)]
             for i, attempt in enumerate(slot.world_attempts, 1):
@@ -146,6 +158,11 @@ def review_text(run: StoryRun) -> str:
             continue
         brief, survival = slot.final.brief, slot.final.brief.survival
         lines += [f"SAVE {slot.save_id[-2:]} — {brief.title}", f"Role: {slot.seed.role.value}", ""]
+        if brief.survivability_tier:
+            lines += [f"Survivability tier: {brief.survivability_tier.value}"]
+        for number, beat in enumerate(slot.final.environment.broll_beats or (), 1):
+            lines += [f"B-roll {number} ({beat.type}): {beat.description}",
+                      f"Framing: {beat.shot_composition}", f"Motion: {beat.camera_motion}", ""]
         for label, value in (
             ("Premise", brief.premise),
             ("Surface attraction", brief.surface_promise),
@@ -248,6 +265,28 @@ def export_story(run: StoryRun, store: RunStore):
     for save, slot in zip(reel.saves, run.saves, strict=True):
         cartridge, broll, motion = visual_values(slot)
         prefix = f"saves/{slot.save_id}"
+        for number, beat in enumerate(slot.final.environment.broll_beats or (), 1):
+            env_values, motion_values = beat_values(broll, motion, beat)
+            name = f"broll_{number:02}"
+            for kind, values in (("values", env_values), ("motion_values", motion_values),
+                                 ("beat", beat)):
+                save.artifacts[f"{name}_{kind}"] = store.write_text(
+                    f"{prefix}/{name}_{kind}.json", values.model_dump_json(indent=2, by_alias=True),
+                    "application/json",
+                )
+            for kind, compiler, values in (
+                ("still", BrollStillPromptCompiler("v2"), env_values.model_dump(by_alias=True)),
+                ("video", BrollVideoPromptCompiler("v2"), {
+                    **env_values.model_dump(by_alias=True),
+                    **motion_values.model_dump(by_alias=True),
+                }),
+            ):
+                prompt = compiler.render(values)
+                key = f"{name}_{kind}_prompt"
+                save.artifacts[key] = store.write_text(f"{prefix}/{key}.txt", prompt.text)
+                save.artifacts[f"{key}_metadata"] = store.write_text(
+                    f"{prefix}/{key}.json", prompt.model_dump_json(indent=2), "application/json",
+                )
         for name, value in (
             ("story", slot),
             ("survival_brief", slot.final.brief),

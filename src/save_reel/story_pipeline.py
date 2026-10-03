@@ -119,7 +119,10 @@ class StoryWorkflow:
         prompts_dir: Path | None = None,
     ) -> StoryRun:
         settings = settings or StorySettings()
-        templates = load_prompts(settings.prompt_version, prompts_dir)
+        templates = load_prompts(
+            settings.prompt_version, prompts_dir, settings.tier_prompt_version,
+            settings.broll_prompt_version, settings.world_review_prompt_version,
+        )
         travelogue = settings.travelogue if settings.prompt_version == "v3" else None
         if travelogue:
             templates.update(load_travelogue_prompts(travelogue.prompt_version, prompts_dir))
@@ -154,6 +157,99 @@ class StoryWorkflow:
     def resume(self, run_dir: Path) -> StoryRun:
         run = self.load(run_dir)
         return self._execute(run, RunStore(run_dir))
+
+    def rewrite_narration(
+        self, source: Path, *, runs_dir: Path, run_id: str,
+        settings: StorySettings, prompts_dir: Path | None = None,
+        save_ids: tuple[str, ...] = SAVE_IDS,
+    ) -> StoryRun:
+        """Rewrite approved worlds without redeveloping worlds or recording new history.
+
+        The branch retains the world provider; each rewritten save records its writer.
+        Resuming uses the branch's frozen settings, prompts and per-response cache.
+        """
+        from save_reel.story_simulation import narrate_world
+
+        if not save_ids or not set(save_ids) <= set(SAVE_IDS):
+            raise ValueError("Narration rewriting requires valid save IDs")
+        target = runs_dir / run_id
+        if (target / "story.json").exists():
+            run = self.load(target)
+            if run.source_run_id != source.name or run.regeneration != "narration":
+                raise ValueError("Narration cache does not match the source world")
+            if set(save_ids) != set(SAVE_IDS) - set(run.frozen_save_ids):
+                raise ValueError("Narration cache does not match the requested saves")
+            for slot in run.saves:
+                if slot.save_id not in run.frozen_save_ids and (
+                    slot.narration_provider != self.provider.name
+                    or slot.narration_model != (
+                        settings.model_for("narration_prose_candidate")
+                        if self.provider.name == "openai" else self.provider.model
+                    )
+                ):
+                    raise ValueError("Resume requires the saved narration provider and model")
+            store = RunStore(target)
+        else:
+            run = self.load(source).model_copy(deep=True)
+            if run.schema_version != "3.0" or not all(
+                s.world and s.world_review and s.world_review.approved(run.settings.novelty)
+                for s in run.saves
+            ):
+                raise ValueError("Narration rewriting requires four approved v3 worlds")
+            run.source_run_id = run.run_id
+            run.run_id = run_id
+            run.created_at = utc_now()
+            run.completed_at = None
+            run.status = StageStatus.PENDING
+            run.error = None
+            run.regeneration = "narration"
+            run.regeneration_save_id = None
+            run.narration_pending = False
+            run.frozen_save_ids = tuple(s.save_id for s in run.saves if s.save_id not in save_ids)
+            # World/novelty settings and every approved fact remain frozen.
+            for field in (
+                "narration_model", "narration_reasoning_effort", "travelogue",
+                "max_output_tokens", "validation_retries",
+            ):
+                setattr(run.settings, field, getattr(settings, field))
+            policy = run.settings.travelogue or TraveloguePolicy.sol()
+            run.templates.update(load_travelogue_prompts(policy.prompt_version, prompts_dir))
+            for slot in run.saves:
+                if slot.save_id not in save_ids:
+                    continue
+                slot.final = slot.narration_stats = slot.narration_draft = None
+                slot.grounding_review = None
+                slot.narration_attempts = ()
+                slot.travelogue = TravelogueState(policy=policy)
+                slot.narration_provider = self.provider.name
+                slot.narration_model = (
+                    settings.model_for("narration_prose_candidate")
+                    if self.provider.name == "openai" else self.provider.model
+                )
+            store = RunStore.create(runs_dir, run_id)
+            self._save(run, store)
+        with self._lock(store), run_logging(store) as logger:
+            if run.status == StageStatus.COMPLETED and store.manifest_path.exists():
+                provenance = store.load_manifest().story_generation
+                digest = hashlib.sha256((target / "story.json").read_bytes()).hexdigest()
+                if not provenance or digest != provenance.state.sha256:
+                    raise ValueError("story cache checksum does not match the manifest")
+                return run
+            run.status = StageStatus.RUNNING
+            run.error = None
+            self._save(run, store)
+            try:
+                self.parallel_slots(run, store, logger, "scripts", narrate_world)
+                run.status = StageStatus.COMPLETED
+                run.completed_at = utc_now()
+                self._save(run, store)
+                export_story(run, store)
+            except Exception as exc:
+                run.status = StageStatus.FAILED
+                run.error = str(exc)
+                self._save(run, store)
+                raise
+        return run
 
     def regenerate(
         self,
@@ -218,6 +314,8 @@ class StoryWorkflow:
             slot.narration_draft = None
             slot.grounding_review = None
             slot.narration_attempts = ()
+            slot.narration_provider = None
+            slot.narration_model = None
             if narration_style in ("travelogue", "sol") or slot.travelogue:
                 policy = slot.travelogue.policy if slot.travelogue else (
                     old.settings.travelogue or TraveloguePolicy()
@@ -371,7 +469,17 @@ class StoryWorkflow:
         if stage in ("brief", "narration"):
             context.pop("creative_history", None)  # Preserve the selected story; no re-invention.
         address = slot.save_id if slot else "reel"
-        model = run.settings.model_for(stage) if run.provider == "openai" else run.model
+        provider = (
+            slot.narration_provider
+            if slot and stage.startswith("narration") and slot.narration_provider
+            else run.provider
+        )
+        if provider != self.provider.name:
+            raise ValueError("Generation requires the saved provider; mock fallback is not allowed")
+        model = run.settings.model_for(stage) if provider == "openai" else (
+            slot.narration_model
+            if slot and stage.startswith("narration") and slot.narration_model else run.model
+        )
         feedback = ""
         directory = store.run_dir / "story_requests" / address / stage
         # Recover a response persisted immediately before an interruption, even if its
@@ -383,7 +491,7 @@ class StoryWorkflow:
                 cached.get("status") == "completed"
                 and cached.get("context") == context
                 and cached.get("base_prompt") == base_prompt
-                and cached.get("provider") == run.provider
+                and cached.get("provider") == provider
                 and cached.get("model") == model
                 and cached.get("reasoning_effort") == run.settings.effort_for(stage)
             ):
@@ -400,7 +508,7 @@ class StoryWorkflow:
             )
             record = dict(
                 stage=stage,
-                provider=run.provider,
+                provider=provider,
                 model=model,
                 created_at=utc_now().isoformat(),
                 prompt=prompt,
@@ -459,6 +567,10 @@ class StoryWorkflow:
             if isinstance(slot.seed, BroadWorldSeed):
                 if not isinstance(candidate, WorldConcept):
                     raise ValueError("v2 requires complete authored world concepts")
+                if slot.seed.survivability_tier and (
+                    candidate.survivability_tier != slot.seed.survivability_tier
+                ):
+                    raise ValueError("candidate must use the assigned survivability_tier")
                 if len(set(map(normalized, candidate.palette))) != len(candidate.palette):
                     raise ValueError("palette colors must be distinct")
                 continue
@@ -494,6 +606,8 @@ class StoryWorkflow:
 
     @staticmethod
     def _check_final(run, slot, result):
+        if "broll_beats" in run.templates and not result.environment.broll_beats:
+            raise ValueError("Final visuals require two distinct broll_beats")
         if result.brief.title != slot.selected.title:
             raise ValueError("final title must match the selected candidate")
         # The generator may elaborate optional fields, but cannot rewrite the central bargain.
@@ -507,6 +621,8 @@ class StoryWorkflow:
                 raise ValueError(f"survival.{field} must preserve the selected text exactly")
         run.settings.narration.check(result.brief.narration)
         if isinstance(slot.selected, WorldConcept):
+            if result.brief.survivability_tier != slot.selected.survivability_tier:
+                raise ValueError("final brief must preserve the survivability tier")
             if (
                 result.environment.palette != slot.selected.palette
                 or result.environment.visual_anomaly != slot.selected.anomaly

@@ -72,6 +72,7 @@ class ConceptRequest(Model):
 
 
 class SaveGameConcept(Model):
+    survivability_tier: Literal["best", "good", "risky", "bad"] | None = None
     title: Text
     summary: Text
     environment: EnvironmentSpec

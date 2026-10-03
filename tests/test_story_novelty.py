@@ -462,7 +462,8 @@ def test_story_debug_and_existing_visual_compilers(generated):
             .text
         )
     assert all(
-        t.version == "v2" for t in RunStore(directory).load_manifest().story_generation.templates
+        t.version == ("v1" if t.name in ("story_tiers", "story_broll_beats") else "v2")
+        for t in RunStore(directory).load_manifest().story_generation.templates
     )
 
 

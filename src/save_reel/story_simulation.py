@@ -14,7 +14,9 @@ from save_reel.story_models import (
 )
 
 
-def check_world(slot, world: WorldSimulation) -> None:
+def check_world(slot, world: WorldSimulation, *, require_beats=False) -> None:
+    if require_beats and not world.environment.broll_beats:
+        raise ValueError("World visuals require two distinct broll_beats")
     if slot.selected is None:
         raise ValueError("simulation requires a selected concept")
     c, spec = slot.selected, world.spec
@@ -44,6 +46,7 @@ def assemble(slot) -> FinalStory:
     spec = world.spec
     return FinalStory(
         brief=SurvivalBrief(
+            survivability_tier=c.survivability_tier,
             title=c.title,
             premise=c.premise,
             surface_promise=c.surface_attraction,
@@ -67,7 +70,7 @@ def assemble(slot) -> FinalStory:
 
 def validate_slot(run, slot) -> None:
     if slot.world:
-        check_world(slot, slot.world)
+        check_world(slot, slot.world, require_beats="broll_beats" in run.templates)
     if slot.world_review and not slot.world:
         raise ValueError("world approval requires a saved simulation")
     if slot.travelogue:
@@ -92,9 +95,43 @@ def validate_slot(run, slot) -> None:
             raise ValueError("final story must match its approved world and grounded narration")
 
 
+class WorldSimulationExhausted(ValueError):
+    def __init__(self, slot):
+        self.save_id = slot.save_id
+        review = slot.world_attempts[-1].review
+        reasons = "; ".join(review.issues) or (
+            f"coherence={review.causal_coherence:.2f}, "
+            f"practical_system={review.practical_system}, "
+            f"preserves_selected_concept={review.preserves_selected_concept}"
+        )
+        super().__init__(
+            f"{slot.save_id} ({slot.selected.title}): world simulation approval exhausted "
+            f"after {len(slot.world_attempts)} attempts. Latest review: {reasons}"
+        )
+
+
 def finish_worlds(workflow, run, store, logger):
-    """Quality rejection rewrites the output, never retries a critic to force approval."""
-    workflow.parallel_slots(run, store, logger, "worlds", simulate_world)
+    """Revise a world, then replace its concept within a bounded recovery budget."""
+    from save_reel.story_development import _replace, develop_worlds
+
+    while True:
+        try:
+            workflow.parallel_slots(run, store, logger, "worlds", simulate_world)
+            break
+        except WorldSimulationExhausted as exc:
+            slot = next(s for s in run.saves if s.save_id == exc.save_id)
+            if len(slot.world_replacements) >= run.settings.max_world_replacements:
+                raise ValueError(
+                    f"{exc}. Automatic world replacement limit reached "
+                    f"({run.settings.max_world_replacements}). Review story_review.txt "
+                    "and regenerate this save's candidates to try a different concept."
+                ) from exc
+            try:
+                _replace(run, slot.save_id, str(exc), logger, source="world simulation")
+            except ValueError as limit:
+                raise ValueError(f"{exc}. {limit}") from limit
+            workflow._save(run, store)
+            develop_worlds(workflow, run, store, logger)
     workflow.parallel_slots(run, store, logger, "scripts", narrate_world)
 
 
@@ -103,11 +140,13 @@ def simulate_world(workflow, run, slot, store, logger):
         return
     while slot.world_review is None or not slot.world_review.approved(run.settings.novelty):
         if len(slot.world_attempts) > run.settings.validation_retries:
-            raise ValueError(f"{slot.save_id}: world simulation approval exhausted")
+            raise WorldSimulationExhausted(slot)
         if slot.world is None:
             slot.world = workflow._generate(
                 run, slot, store, logger, "world_simulation", WorldSimulation,
-                lambda value: check_world(slot, value),
+                lambda value: check_world(
+                    slot, value, require_beats="broll_beats" in run.templates
+                ),
                 simulation_round=len(slot.world_attempts) + 1,
                 previous_review=(
                     slot.world_attempts[-1].review.model_dump(mode="json")

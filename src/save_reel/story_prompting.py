@@ -23,7 +23,7 @@ class StoryPromptCompiler(PromptCompiler):
     def __init__(self, stage: str, version: str = "v1", *, prompts_dir: Path | None = None):
         if stage not in (
             *STORY_STAGES, *SIMULATION_STAGES, *TRAVELOGUE_STAGES, *PROSE_STAGES, *PLAIN_STAGES,
-            "narration_examples", "rules",
+            "narration_examples", "rules", "tiers", "broll_beats",
         ):
             raise ValueError("unknown story prompt stage")
         self.template_name = f"story_{stage}"
@@ -33,16 +33,26 @@ class StoryPromptCompiler(PromptCompiler):
         raise ValueError("story prompts require explicit structured context")
 
 
-def load_prompts(version: str, prompts_dir: Path | None = None) -> dict[str, CompiledPrompt]:
+def load_prompts(version: str, prompts_dir: Path | None = None,
+                 tier_version: str | None = None,
+                 broll_version: str | None = None,
+                 world_review_version: str | None = None) -> dict[str, CompiledPrompt]:
     rules = StoryPromptCompiler("rules", version, prompts_dir=prompts_dir).render({})
     # Keep unresolved context slots in the snapshot so resume never reads revised templates.
     result = {"rules": rules}
+    if tier_version and version != "v1":
+        tiers = StoryPromptCompiler("tiers", tier_version, prompts_dir=prompts_dir).render({})
+        result["tiers"] = tiers
+        rules = rules.model_copy(update={"text": rules.text + "\n\n" + tiers.text})
     stages = (
         STORY_STAGES[:-1] if version == "v1"
         else STORY_STAGES if version == "v2" else SIMULATION_STAGES
     )
     for stage in stages:
-        result[stage] = StoryPromptCompiler(stage, version, prompts_dir=prompts_dir).render(
+        stage_version = world_review_version if stage == "world_review" else None
+        result[stage] = StoryPromptCompiler(
+            stage, stage_version or version, prompts_dir=prompts_dir
+        ).render(
             {
                 "WRITING_RULES": rules.text,
                 "CONTEXT": "[CONTEXT]",
@@ -50,6 +60,15 @@ def load_prompts(version: str, prompts_dir: Path | None = None) -> dict[str, Com
                 "HISTORY": "[HISTORY]",
             }
         )
+        if "tiers" in result and stage in ("world_simulation", "world_review"):
+            result[stage].text += "\n\n" + result["tiers"].text
+    if broll_version and version != "v1":
+        beats = StoryPromptCompiler(
+            "broll_beats", broll_version, prompts_dir=prompts_dir
+        ).render({})
+        result["broll_beats"] = beats
+        stage = "brief" if version == "v2" else "world_simulation"
+        result[stage].text += "\n\n" + beats.text
     return result
 
 

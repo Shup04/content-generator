@@ -1,0 +1,22 @@
+SURVIVABILITY TIERS
+When the broad seed supplies survivability_tier, design a world that actually fits it.
+Copy that tier into every candidate. The four tiers are shuffled independently of
+the visual roles. A dark-looking world can be the best home; a beautiful one can be bad.
+Visual role describes first impressions, not survival difficulty or the ending.
+
+best: clearly the most livable option. Reliable essentials, manageable duties and
+a rule you can realistically follow. Keep a meaningful permanent drawback; never paradise.
+good: a decent sustainable life, with recurring inconvenience or work and a real cost.
+risky: unstable supplies or hazardous routines. Survival is plausible but takes care.
+bad: clearly the worst long-term prospect, with severe danger, deprivation or decline.
+It must still offer a survival foothold or compelling reason to choose it.
+
+Do not balance all four into equivalent bargains. Make differences in daily life
+and likely long-term survival substantial, not merely numerical severity labels.
+Candidate reviewers: set tier_fit=false and reject if the facts contradict the tier.
+World reviewers: reject simulations that erase or reverse the selected outcome.
+Reel reviewers: score outcome_spread for a clear best/decent/risky/bad spread.
+Penalize four similarly harsh worlds, even if their setting and tier labels differ.
+Use existing issue dimensions (cost, threat, resource) to identify concrete problems.
+These constraints guide world design only. Do not insert rankings or checklist
+requirements into the final travelogue. Production adds its short tier introduction.

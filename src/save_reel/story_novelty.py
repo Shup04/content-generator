@@ -164,6 +164,8 @@ def assess_candidate(
                 reasons.append(f"{name} {value:.2f} below minimum {minimum:.2f}")
         if rating.rejection_reason:
             reasons.append(rating.rejection_reason)
+        if not rating.tier_fit:
+            reasons.append("World does not fit its assigned survival outcome")
     return CandidateAssessment(
         candidate_id=candidate.candidate_id,
         accepted=not reasons,
@@ -239,6 +241,7 @@ def reel_review_passes(review: ReelDiversityReview, policy: NoveltyPolicy) -> bo
         "emotion",
         "palette",
         "overall",
+        "outcome_spread",
     )
     return not review.issues and all(
         getattr(review, d) >= policy.minimum_reel_diversity for d in dimensions

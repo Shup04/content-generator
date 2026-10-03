@@ -7,6 +7,7 @@ from typing import Annotated, Literal
 
 from pydantic import Field, model_validator
 
+from save_reel.broll_beats import BrollBeat, validate_beats
 from save_reel.models import (
     CompiledPrompt,
     ConceptRequest,
@@ -19,6 +20,7 @@ from save_reel.models import (
     utc_now,
 )
 from save_reel.story_narration_models import TraveloguePolicy, TravelogueState
+from save_reel.story_tiers import TIERS, SurvivabilityTier
 
 
 class SaveRole(StrEnum):
@@ -97,6 +99,9 @@ class NoveltyPolicy(Model):
 
 
 class StorySettings(Model):
+    world_review_prompt_version: str | None = Field(default="v4", pattern=r"^v[1-9][0-9]*$")
+    broll_prompt_version: str | None = Field(default="v1", pattern=r"^v[1-9][0-9]*$")
+    tier_prompt_version: str | None = Field(default="v1", pattern=r"^v[1-9][0-9]*$")
     model: Text = "gpt-6-luna"
     narration_model: Text = "gpt-6.1-sol"
     prompt_version: str = Field(default="v3", pattern=r"^v[1-9][0-9]*$")
@@ -104,8 +109,12 @@ class StorySettings(Model):
     candidates_per_save: int = Field(default=3, ge=2, le=6)
     recent_history_count: int = Field(default=80, ge=0, le=500)
     validation_retries: int = Field(default=2, ge=0, le=10)
+    max_world_replacements: int = Field(default=1, ge=0, le=3)
     max_output_tokens: int = Field(default=32000, ge=1000, le=64000)
     world_reasoning_effort: Literal["low", "medium", "high", "xhigh", "max"] = "high"
+    world_review_reasoning_effort: Literal["low", "medium", "high", "xhigh", "max"] | None = (
+        "medium"
+    )
     candidate_reasoning_effort: Literal["low", "medium", "high", "xhigh", "max"] | None = None
     narration_reasoning_effort: Literal["low", "medium", "high", "xhigh", "max"] = "medium"
     narration: NarrationPolicy = Field(default_factory=NarrationPolicy)
@@ -124,6 +133,8 @@ class StorySettings(Model):
             return None  # Keep the request parameters of legacy workflows.
         if stage == "candidates" and self.candidate_reasoning_effort is not None:
             return self.candidate_reasoning_effort
+        if stage == "world_review" and self.world_review_reasoning_effort is not None:
+            return self.world_review_reasoning_effort
         return (
             self.narration_reasoning_effort
             if stage.startswith("narration")
@@ -143,6 +154,7 @@ class BroadWorldSeed(Model):
     """V2 constraints intentionally contain no final creative mechanics."""
 
     role: SaveRole
+    survivability_tier: SurvivabilityTier | None = None
     setting_family: Text
     surface_emotion: Text
     deeper_emotion: Text
@@ -219,6 +231,7 @@ class WorldConcept(SurvivalCandidate):
     """Luna authors these details together, rather than filling procedural banks."""
 
     specific_setting: Text
+    survivability_tier: SurvivabilityTier | None = None
     resource_problem: Text
     central_mechanic: Text
     emotional_mechanic: Text
@@ -297,6 +310,7 @@ class WorldCandidateRating(Model):
     history_similarity: UnitScore
     rejection_reason: Text | None
     rationale: Text
+    tier_fit: bool = True
 
 
 class WorldCandidateReview(Model):
@@ -339,6 +353,7 @@ class ReelDiversityReview(Model):
     emotion: UnitScore
     palette: UnitScore
     overall: UnitScore
+    outcome_spread: UnitScore = 1
     issues: tuple[ReelIssue, ...]
     weakest_save_id: SaveId | None
     rationale: Text
@@ -364,6 +379,7 @@ class SurvivalDetails(Model):
 
 
 class SurvivalBrief(Model):
+    survivability_tier: SurvivabilityTier | None = None
     title: Text
     premise: Text
     surface_promise: Text
@@ -392,6 +408,12 @@ class EnvironmentVariables(Model):
     environmental_motion: Text
     shot_composition: Text
     key_surfaces: Annotated[tuple[Text, ...], Field(min_length=1)]
+    broll_beats: Annotated[tuple[BrollBeat, ...], Field(min_length=2, max_length=2)] | None = None
+
+    @model_validator(mode="after")
+    def distinct_broll_beats(self):
+        validate_beats(self.broll_beats)
+        return self
 
 
 class FinalStory(Model):
@@ -511,6 +533,23 @@ class WorldAttempt(Model):
     review: WorldApproval
 
 
+class WorldReplacement(Model):
+    concept: WorldConcept
+    candidate_round: int = Field(ge=1)
+    attempts: tuple[WorldAttempt, ...]
+    pending_simulation: WorldSimulation | None = None
+    reason: Text
+
+
+class WorldReviewUpdate(Model):
+    created_at: datetime = Field(default_factory=utc_now)
+    previous_prompt: CompiledPrompt
+    previous_effort: Text | None
+    new_prompt: CompiledPrompt
+    new_effort: Text
+    attempts: dict[SaveId, tuple[WorldAttempt, ...]]
+
+
 class NarrationAttempt(Model):
     draft: GroundedNarration
     review: GroundingReview
@@ -579,10 +618,14 @@ class StorySave(Model):
     world: WorldSimulation | None = None
     world_review: WorldApproval | None = None
     world_attempts: tuple[WorldAttempt, ...] = ()
+    world_replacements: tuple[WorldReplacement, ...] = ()
     narration_draft: GroundedNarration | None = None
     grounding_review: GroundingReview | None = None
     narration_attempts: tuple[NarrationAttempt, ...] = ()
     travelogue: TravelogueState | None = None
+    # A narration-only rewrite may use a different provider from the original world.
+    narration_provider: Text | None = None
+    narration_model: Text | None = None
 
     def spoken_policy(self, settings):
         return self.travelogue.policy if self.travelogue else settings.narration
@@ -613,12 +656,18 @@ class StoryRun(Model):
     reel_review_history: tuple[ReelReviewAttempt, ...] = ()
     reel_replacements: int = 0
     frozen_save_ids: tuple[SaveId, ...] = ()
+    world_review_updates: tuple[WorldReviewUpdate, ...] = ()
 
     @model_validator(mode="before")
     @classmethod
     def preserve_saved_narration_policy(cls, value):
         # Missing in old checkpoints: resume their saved briefing behavior, never upgrade it.
         if isinstance(value, dict) and isinstance(value.get("settings"), dict):
+            value = {**value, "settings": dict(value["settings"])}
+            value["settings"].setdefault("tier_prompt_version", None)
+            value["settings"].setdefault("broll_prompt_version", None)
+            value["settings"].setdefault("world_review_prompt_version", None)
+            value["settings"].setdefault("world_review_reasoning_effort", None)
             if "travelogue" not in value["settings"]:
                 value = {**value, "settings": {**value["settings"], "travelogue": None}}
         return value
@@ -629,6 +678,9 @@ class StoryRun(Model):
             raise ValueError("story requires exactly four ordered distinct save IDs")
         if tuple(s.seed.role for s in self.saves) != ROLES:
             raise ValueError("each save must occupy its distinct narrative role")
+        tiers = [getattr(s.seed, "survivability_tier", None) for s in self.saves]
+        if all(tiers) and set(tiers) != set(TIERS):
+            raise ValueError("a tiered reel needs one best, good, risky and bad save")
         is_v2 = self.schema_version != "1.0"
         fields = (
             ("setting_family",)
@@ -677,6 +729,10 @@ class StoryRun(Model):
                 if len(ids) != len(expected) or set(ids) != expected:
                     raise ValueError("cached review must rate every candidate exactly once")
             if slot.selected:
+                if getattr(slot.seed, "survivability_tier", None) and (
+                    slot.selected.survivability_tier != slot.seed.survivability_tier
+                ):
+                    raise ValueError("selected world must match its assigned survivability tier")
                 if slot.candidates is None or slot.selected not in slot.candidates.candidates:
                     raise ValueError("selected concept must come from the saved candidate set")
                 if not slot.review or not any(
@@ -691,6 +747,10 @@ class StoryRun(Model):
                 ):
                     raise ValueError("selected danger/cost types must match the seed")
             if slot.final:
+                if getattr(slot.selected, "survivability_tier", None) and (
+                    slot.final.brief.survivability_tier != slot.selected.survivability_tier
+                ):
+                    raise ValueError("final brief must preserve the survivability tier")
                 if not slot.selected or slot.final.brief.title != slot.selected.title:
                     raise ValueError("final title must match the selected concept")
                 slot.spoken_policy(self.settings).check(slot.final.brief.narration)
@@ -731,6 +791,7 @@ class StoryRun(Model):
                     policy = self.settings.novelty
                     if (
                         rating.novelty < policy.minimum_novelty
+                        or not rating.tier_fit
                         or rating.causal_coherence < policy.minimum_coherence
                         or rating.overall < policy.minimum_overall
                         or rating.history_similarity >= policy.similarity_threshold

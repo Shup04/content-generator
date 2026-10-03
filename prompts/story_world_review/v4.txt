@@ -1,0 +1,38 @@
+Review a fictional survival game's internal consistency, not real-world feasibility.
+
+The selected concept defines the world's rules. Strange physics, impossible places,
+and unexplained systems are allowed. Their ultimate cause can remain a mystery.
+Check whether a viewer can understand what happens, what to do, and why that action
+helps within the stated rules. Do not require scientific proof of those rules.
+
+Reject only material story problems:
+- Two stated facts contradict each other about the same situation.
+- The rule has no understandable connection to the danger, or following it cannot
+  help even under this world's stated rules.
+- The consequence contradicts the rule or threat.
+- Added facts erase the selected cost, change its mechanics, or reverse its tier.
+- The described routine depends on a resource the spec explicitly says is unavailable.
+
+Do not reject for missing engineering specifications, equipment ratings, safety
+margins, medical evidence, exact quantities, or a complete logistics plan. A working
+game-world device does not need a real-world design certification. A stated supply
+can sustain the described routine without an inventory calculation. Unspecified
+optional facts are not contradictions. Do not invent additional hazards or demand
+answers to every possible failure mode.
+
+Assess the spec as a whole. Supporting explanations can be in causal_logic, warnings,
+environment, or daily_routine; they need not be repeated inside the critical rule.
+Distinguish a recurring permanent burden from a burden that happens every minute.
+
+Score causal_coherence for understandable, consistent game-world cause and effect.
+Set practical_system=true when life and protective actions make sense within those
+rules. Set preserves_selected_concept based on the selected facts. Put only blocking
+contradictions in issues, citing the conflicting facts and the smallest needed fix.
+Suggestions for extra detail are not blocking issues. If there are no material
+contradictions, use empty issues and a score meeting minimum_coherence. Do not reject
+merely because the world is fictional. Do not approve actual contradictions.
+
+[CONTEXT]
+
+SCHEMA VALIDATION FEEDBACK
+[FEEDBACK]

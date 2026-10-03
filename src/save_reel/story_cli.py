@@ -23,6 +23,12 @@ def add_story_commands(commands):
     generate.add_argument("--prompts-dir", type=Path)
     resume = commands.add_parser("resume-concepts", help="Reuse completed text stages in a run")
     resume.add_argument("run_dir", type=Path)
+    resume.add_argument(
+        "--world-review-version",
+        help="Explicitly recheck failed worlds with this review prompt before resuming",
+    )
+    resume.add_argument("--world-review-effort", choices=("low", "medium", "high", "xhigh", "max"),
+                        default="medium")
     regenerate = commands.add_parser(
         "regenerate-concepts", help="Fork cached stories, explicitly regenerating selected content"
     )
@@ -125,6 +131,11 @@ def run_story_command(args: argparse.Namespace) -> None:
                 print(review_text(run))
             print(args.runs_dir / run.run_id / "story_review.txt")
         return
+    if args.command == "resume-concepts" and args.world_review_version:
+        from save_reel.story_review_policy import prepare_world_recheck
+
+        prepare_world_recheck(args.run_dir, version=args.world_review_version,
+                              effort=args.world_review_effort)
     saved = StoryWorkflow.load(args.run_dir)
     complete = all(s.final for s in saved.saves) and not saved.narration_pending
     provider = (

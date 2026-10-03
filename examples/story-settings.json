@@ -37,6 +37,8 @@
     "summary_set_limit": 12
   },
   "world_reasoning_effort": "high",
+  "world_review_prompt_version": "v4",
+  "world_review_reasoning_effort": "medium",
   "narration_reasoning_effort": "medium",
   "narration_model": "gpt-6.1-sol"
 }
