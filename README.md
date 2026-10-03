@@ -105,10 +105,110 @@ Media and voice actions use paid APIs even with mock stories. **Base video only 
 uses FFmpeg without speech generation. **Finish existing media + voice** assembles saved
 assets and adds narration. Simply opening Studio or editing does not generate anything.
 
+Narration records its source provider and model separately from the draft's settings.
+Mock scripts are labeled as offline fixtures. Finishing a reel automatically rewrites
+them with the configured OpenAI narrator, using the saved approved worlds, before
+recording speech. Switching the story provider does not relabel cached mock text.
+Identical scripts across saves stop production before media or speech requests.
+**Rewrite narration only** applies the current writer model and prompt to existing
+worlds without regenerating cartridges or clips. The three candidates, selection and
+provider responses are checkpointed in a new story branch; retries reuse saved work.
+Manual script edits and previously generated real scripts are preserved unless you
+explicitly choose this rewrite action.
+
+### Polished pacing and survival tiers
+
+New Studio drafts enable **Speech-timed cartridge reveals and varied footage** in
+**Models & settings → Voice & assembly**. Enable it there for an older draft, then
+use **Finish existing media + voice**. Existing saved videos keep their original layout.
+
+- Each save gets a large cartridge card on the existing starfield while its title
+  is spoken. The default beat is 1.25 seconds; actual speech alignment controls the
+  transition. Unusually long titles can extend the beat rather than get cut off.
+- The world reveal follows the recorded narration's length. Each supplied clip plays
+  once, slowed by at most **Maximum clip slowdown** (default 1.5×). Extra time uses the
+  same world's still with a small zoom, before or after the footage. Old runs without
+  a saved still use a locally extracted frame. Polished mode ignores legacy looping.
+- Lower thirds and timed captions share the console's display/system fonts, dark
+  panels and cyan accents. Colours, spacing, type sizes and opacity are in
+  `render.polish.style`; the settings panel's advanced JSON exposes all tokens.
+- Every new tiered story reel has one `best`, `good`, `risky` and `bad` outcome.
+  Seeded shuffling assigns tiers independently of slot and visual role. The versioned
+  `prompts/story_tiers/v1.txt` guides world generation and review; critics reject
+  mismatched tiers and insufficient outcome spread. “Best” still has a permanent cost.
+- Each game card has an editable tier. Older worlds initially receive relative ranks
+  from their saved severity, with stable title-based tie-breaking; review these before
+  production because this does not redesign their existing survival systems.
+  All four tiers must be present before polished narration can run.
+
+Short tier introductions are editable under **Voice & assembly**, separately from
+the writer prompt and body script. The body writer's word target stays unchanged.
+The first polished render records four title cues and four tier-prefixed body cues;
+matching existing speech, including the opener, is reused. Later style/pacing-only
+changes can reuse all nine recordings. The library requires every planned cue to
+be complete before labeling a reel finished.
+
+### Two B-roll beats per save
+
+New stories include `environment.broll_beats`: exactly two distinct structured shots,
+first an establishing view, then a closer view of another area or a specific survival
+or daily-life detail. `prompts/story_broll_beats/v1.txt` adds these visual requirements
+to world simulation without changing narration or creative-history selection. Each
+beat has a description, composition and camera motion. Shared palette, time, mood,
+materials and the existing still/video templates keep the same game identity.
+Story exports include per-beat values and compiled prompts under `saves/save_XX/`.
+
+Studio generates eight stills, then independently animates all eight through the
+existing checkpointed B-roll provider. Each beat has its own run, task ID and cache.
+The two run folders store `broll_01_still.png` / `broll_01.mp4` and
+`broll_02_still.png` / `broll_02.mp4`. Render inputs also keep these numbered names.
+No third clip is generated automatically.
+
+Configuration uses the existing settings paths rather than a second provider config:
+
+| Setting | Default | Purpose |
+| --- | --- | --- |
+| `broll.video_model` | `MiniMax-H3-Max` | Configurable video model |
+| `broll.resolution` | `480P` | Native video resolution |
+| `broll.duration` | `5` | Generated seconds per clip |
+| `broll.clips_per_save` | `2` | Use one or both authored beats |
+| `render.polish.max_slowdown` | `1.5` | Maximum duration multiplier |
+| `render.polish.allow_still_fallback` | `true` | Fill excess speech time with a world still |
+
+After the existing cartridge/title card, FFmpeg plays A then B once each with a clean
+cut. A 9-second section uses about 4.5 seconds of each; a 12-second section uses 1.2×
+slowdown. Longer narration can use up to 1.5× and then a still with gentle zoom.
+The narration and captions remain continuous across the cut. Disabling still fallback
+raises a clear error when the footage cannot cover speech within the slowdown cap;
+it never silently loops or purchases another clip. Narration word targets are unchanged,
+so longer existing scripts will still need the still fallback.
+
+Use **Advanced: run or regenerate a single stage → Saves to update → B-roll to update**
+to choose B-roll 1, B-roll 2, or both. **B-roll clips** regenerates video while reusing
+matching stills; **B-roll stills** with **Make a new version** also replaces that beat's
+image. The other beat and the other saves retain their references. **Finish existing
+media + voice** and base rendering use saved media and make no image/video API calls.
+
+Older drafts and manifests without beat arrays retain their single clip and original
+settings. They are not upgraded into a second paid clip automatically. Existing presets
+also keep saved model, resolution and slowdown choices; the defaults above apply to new
+settings. New story generation uses the two-beat template, whose version is recorded in
+the story manifest. Both beats are editable and previewable in the existing workspace.
+
+Each output stores `speech_plan.json`, its actual timeline, and `footage_plan.json`
+(source, slowdown, frame budget, still fallback), plus FFmpeg commands and filters.
+The local pacing filters use FFmpeg's documented
+[setpts and zoompan filters](https://ffmpeg.org/ffmpeg-filters.html).
+
 The four saves run concurrently within each stage, bounded by **Parallel saves per
 stage** (default 4, configurable 1–4). Whole-reel diversity review remains coordinated,
 worlds must pass review before narration writing, and all stills finish before video
-submissions. Speech recordings also run concurrently. Checkpoints are serialized;
+submissions. Speech recordings use a separate **Parallel voice recordings** limit (default 2,
+configurable 1–4) to respect ElevenLabs plan limits. Explicit HTTP 429 rejections
+wait for in-flight speech to finish, then retry serially with bounded backoff.
+Confirmed request rejections can be resumed; uncertain timeouts and malformed
+successes still block duplicate submissions. Original per-cue failures are kept
+in the narration manifest and log. Checkpoints are serialized;
 failures retain other saves' completed results. Stage barriers, provider queues, retries
 and local rendering mean total runtime will not necessarily fall by 75%.
 
@@ -142,9 +242,10 @@ The video selector includes `MiniMax-H3` (4–15s, 768P/2K) and `MiniMax-H3-Max`
 [MiniMax's V2 API documentation](https://platform.minimax.io/docs/api-reference/video-generation-v2-create).
 The CLI also accepts `generate-broll --video-model MiniMax-H3-Max`.
 
-Rendering preserves the existing opener, layouts and subtitles. **Time per save** sets
-the reveal length; short clips can loop. The existing speech fitting logic is retained:
-long scripts may need a longer reveal or a shorter script. Rerendering with the same
+Rendering preserves the existing opener, layouts and subtitles. Polished renders follow
+speech length using both clips and bounded slowdown/still fallback. Only legacy
+single-clip, unpolished renders can use the explicitly enabled looping option.
+Rerendering with the same
 voice/model/settings reuses matching recordings, including when just one save's text
 changes. Imported story runs do not automatically attach a previous reel's speech.
 
@@ -173,10 +274,11 @@ Host/Origin and a session token for mutations, and serves only allowlisted run m
 The default story configuration is **v3**, with two phases: WORLD SIMULATION and
 NARRATION. World design stays on `gpt-6-luna`; the final writer uses `gpt-6.1-sol`:
 
-- World design, candidate critiques and simulation approval: `reasoning.effort=high`.
+- World design and candidate critiques: `reasoning.effort=high`.
+- World consistency review: `reasoning.effort=medium` with its independent v4 prompt.
 - Narration description, writing and selection: `reasoning.effort=medium`.
 
-Set `world_reasoning_effort` and `narration_reasoning_effort` in
+Set `world_reasoning_effort`, `world_review_reasoning_effort` and `narration_reasoning_effort` in
 `examples/story-settings.json` to change them. Configure the writer independently with
 `narration_model`. [Sol supports medium reasoning](https://developers.openai.com/api/docs/models/gpt-6.1-sol).
 Optional `candidate_reasoning_effort` overrides only the initial candidate-writing
@@ -278,6 +380,28 @@ Both new phases checkpoint drafts and reviews independently. Rejected outputs an
 reasons remain in `world_attempts` / `travelogue.attempts`. Each phase gets at most
 `validation_retries + 1` quality attempts, in addition to the existing bounded schema
 validation retries. A failing critic is not repeatedly queried to obtain approval.
+If a world exhausts those attempts, the workflow excludes that concept and tries another
+through the existing novelty and reel-diversity checks. `max_world_replacements` defaults
+to one replacement per save (set it to `0` to disable recovery); the existing reel-wide
+replacement limit also applies. Approved sibling worlds are retained. Rejected concepts,
+simulations and review reasons remain in `world_replacements` and `story_review.txt`.
+Resuming a failed job can use its remaining replacement budget without restarting the
+other saves. Exhausting that budget stops with the title and review reasons.
+
+World review v4 checks consistency inside a fictional game. It rejects conflicting
+facts or rules that do not work under the world's own mechanics; it does not demand
+equipment ratings, scientific proof, or detailed supply calculations. New drafts use
+`world_review_prompt_version: "v4"`. Existing checkpoints retain their saved reviewer.
+To explicitly upgrade an unfinished CLI run and recheck its latest rejected worlds:
+
+```bash
+save-reel resume-concepts runs/MY-RUN --world-review-version v4 --world-review-effort medium
+```
+
+Approved worlds remain cached. Old reviews and the previous prompt are archived in
+`world_review_updates`. The new reviewer sees the last saved draft before any rewrite.
+Repeating the same upgrade does not reset the attempt budget. Narration, novelty,
+cartridge prompts, and b-roll prompts are unchanged.
 
 The four roles remain attractive, nostalgic, mysterious and ominous, without fixed
 inhabitant types, danger banks or a mandatory severity pattern. Configure the new word
@@ -683,11 +807,12 @@ save-reel generate-broll \
 ```
 
 This command makes **paid API requests** for one game: first a
-`gpt-image-2.5-sunburst` image, then a `MiniMax-H3` video. The default still is an
+`gpt-image-2.5-sunburst` image, then a `MiniMax-H3-Max` video. The default still is an
 opaque 864×1536 PNG (exactly 9:16) at medium quality. The default video is five
-seconds at 768P. H3 takes its aspect ratio from the first-frame image. You can
+seconds at 480P. The video takes its aspect ratio from the first-frame image. You can
 select `--image-model gpt-image-2.5-flare`, `--image-quality high`, `--duration 6`,
-or `--resolution 2K`. Duration must be an integer from 4 through 15.
+or `--video-model MiniMax-H3 --resolution 768P` for an A/B comparison. H3 Max
+supports 5–15 seconds at 480P/768P; H3 supports 4–15 seconds at 768P/2K.
 
 MiniMax can return quantized dimensions and a slightly different duration. The
 first DEEP END run returned a 768×1344, 24 fps clip lasting 5.167 seconds from the

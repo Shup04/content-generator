@@ -400,3 +400,115 @@ def test_reuse_copies_matching_speech_and_generates_only_changed_line(narration_
     assert (store.run_dir / "speech/save_02.mp3").read_bytes() == (
         cached.run_dir / "speech/save_02.mp3"
     ).read_bytes()
+
+
+@pytest.mark.parametrize("status,code,rejected", [
+    (429, "too_many_concurrent_requests", True),
+    (429, "system_busy", True),
+    (401, "invalid_api_key", True),
+    (422, "unknown-code-with-private-content", True),
+    (500, "system_busy", False),
+    (408, "unknown", False),
+])
+def test_speech_rejections_are_typed_without_exposing_response_body(status, code, rejected):
+    httpx = pytest.importorskip("httpx")
+    from save_reel.providers.elevenlabs_speech import ElevenLabsSpeechProvider
+    from save_reel.providers.speech import SpeechRequestRejected
+
+    def handle(request):
+        return httpx.Response(
+            status, json={"detail": {"status": code, "message": "private-secret"}},
+            headers={"Retry-After": "7"},
+        )
+
+    with httpx.Client(transport=httpx.MockTransport(handle)) as client:
+        with pytest.raises(MediaError) as caught:
+            ElevenLabsSpeechProvider("private-secret", client).generate(
+                "Hello", SpeechSettings(voice_id="stock")
+            )
+    error = caught.value
+    assert isinstance(error, SpeechRequestRejected) == rejected
+    assert "private" not in str(error)
+    if rejected:
+        assert error.status_code == status
+        assert error.retryable == (status == 429)
+        assert error.retry_after == 7
+        assert error.code is None or error.code == code
+
+
+@pytest.mark.parametrize("persistent", [False, True])
+def test_429_waits_for_batch_then_retries_only_rejected_speech(
+    narration_assets, tmp_path, monkeypatch, persistent,  # noqa: F811
+):
+    from save_reel.providers.speech import SpeechRequestRejected
+
+    source, audio, script = narration_assets
+    waits = []
+
+    class BusySpeech(FakeSpeech):
+        rejected = 0
+        reject = True
+
+        def generate(self, text, settings):
+            if text == script.intro and self.reject and (persistent or self.rejected == 0):
+                self.rejected += 1
+                raise SpeechRequestRejected(
+                    "ElevenLabs rejected the request (HTTP 429). Too many voice requests.",
+                    status_code=429, code="too_many_concurrent_requests", retry_after=3,
+                )
+            return super().generate(text, settings)
+
+    provider = BusySpeech(audio)
+    pipeline = NarrationPipeline(provider)
+    store = pipeline.prepare(source, script, SpeechSettings(voice_id="test"),
+                             runs_dir=tmp_path, run_id="limited")
+
+    def wait(delay):
+        state = pipeline.load(store)
+        # The rejected intro is retryable; every other request has finished and persisted.
+        assert not state.cues[0].attempted
+        assert state.cues[0].failure.outcome == "rejected"
+        assert all(c.audio and c.metadata for c in state.cues[1:])
+        waits.append(delay)
+
+    monkeypatch.setattr("save_reel.narration.time.sleep", wait)
+    # Other composition behavior is already covered by the real FFmpeg tests.
+    monkeypatch.setattr(pipeline, "_compose", lambda *args: None)
+    if persistent:
+        with pytest.raises(MediaError, match="resume this job"):
+            pipeline.execute(store, max_workers=4)
+        assert provider.rejected == 3
+        state = pipeline.load(store)
+        assert state.cues[0].failure.http_status == 429
+        assert state.cues[0].failure.retryable
+        assert not state.cues[0].attempted
+        assert provider.calls == 4
+        provider.reject = False
+        pipeline.execute(store, max_workers=4)
+    else:
+        pipeline.execute(store, max_workers=4)
+        assert provider.rejected == 1
+    assert waits == ([3, 4] if persistent else [3])
+    assert provider.calls == 5  # Four saves once, plus the accepted intro once.
+    state = pipeline.load(store)
+    assert state.status == "completed"
+    assert all(c.audio and c.failure is None for c in state.cues)
+
+
+def test_ambiguous_resume_preserves_original_failure(narration_assets, tmp_path):  # noqa: F811
+    source, audio, script = narration_assets
+    provider = FakeSpeech(audio, fail=True)
+    pipeline = NarrationPipeline(provider)
+    store = pipeline.prepare(source, script, SpeechSettings(voice_id="test"), runs_dir=tmp_path)
+    with pytest.raises(MediaError, match="speech timeout"):
+        pipeline.execute(store)
+    original = pipeline.load(store).cues[0].failure
+    assert original.outcome == "uncertain"
+    assert not original.retryable
+    for _ in range(2):
+        with pytest.raises(MediaError, match="Original failure: speech timeout"):
+            pipeline.execute(store)
+    current = pipeline.load(store).cues[0]
+    assert current.failure == original
+    assert current.stage.error == "speech timeout"
+    assert provider.calls == 1

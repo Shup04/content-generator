@@ -18,7 +18,7 @@ from save_reel.render_models import RenderCollection, RenderGame, RenderRun
 from save_reel.storage import RunStore
 from save_reel.story_pipeline import StoryWorkflow
 from save_reel.studio_jobs import timestamp
-from save_reel.studio_models import JobRequest, StudioDraft
+from save_reel.studio_models import JobRequest, StudioDraft, narration_digest
 from save_reel.studio_progress import LABELS, plan, update
 from save_reel.studio_store import StudioStore, compile_game, games_from_story, write_json
 
@@ -30,6 +30,7 @@ class ProductionJob:
         self.job = json.loads((self.folder / "job.json").read_text())
         self.request = JobRequest.model_validate(self.job["request"])
         self.draft = StudioDraft.model_validate_json((self.folder / "draft.json").read_text())
+        self.store.annotate_narration(self.draft)
         self.prompts = self.folder / "prompts"
         self.job_id = job_id
         self.lock = threading.RLock()
@@ -44,6 +45,8 @@ class ProductionJob:
             update(self.job["progress"], stage, unit, status)
             if status == "running":
                 self.job["phase"] = LABELS.get(stage, stage)
+            elif status == "waiting" and stage == "speech":
+                self.job["phase"] = "Waiting for ElevenLabs; rejected voice requests will retry"
             self.checkpoint()
 
     def completed_stage(self, stage):
@@ -108,23 +111,93 @@ class ProductionJob:
 
     def media(self, kind):
         targets = [
-            (i, g)
+            (i, g, beat)
             for i, g in enumerate(self.draft.games, 1)
             if not self.request.save_number or i == self.request.save_number
+            for beat in ([1] if kind == "cartridges" else
+                         [self.request.beat_number] if self.request.beat_number else
+                         g.clip_numbers(self.draft.broll.clips_per_save))
         ]
+        # Validate all requested beats before any paid work begins.
+        if kind != "cartridges":
+            for _, game, beat in targets:
+                game.clip_values(beat)
+                if beat > self.draft.broll.clips_per_save:
+                    raise ValueError("Enable two clips per save before generating B-roll 2")
 
         def work(item):
-            number, game = item
-            unit = f"save_{number:02}"
+            number, game, beat = item
+            unit = f"save_{number:02}" + (
+                f"_broll_{beat:02}" if kind != "cartridges" and game.broll_beats else ""
+            )
             self.progress(kind, unit, "running")
             try:
-                self.media_save(kind, number, game)
+                self.media_save(kind, number, game, beat)
             except Exception:
                 self.progress(kind, unit, "failed")
                 raise
             self.progress(kind, unit, "completed")
 
         parallel_each(work, targets, self.draft.parallel_saves)
+
+    def scripts(self, *, force=False):
+        """Use the real writer for offline fixtures; preserve edited/approved scripts."""
+        from save_reel.story_cli import _provider
+
+        targets = tuple(
+            f"save_{i:02}" for i, game in enumerate(self.draft.games, 1)
+            if force or game.needs_script
+        )
+        if not targets:
+            self.completed_stage("scripts")
+            return
+        if not self.draft.source_story:
+            raise ValueError("Import a story with approved worlds before rewriting narration")
+        source = self.store.run_dir(self.draft.source_story)
+        original = StoryWorkflow.load(source)
+        if tuple(s.final.brief.title for s in original.saves) != tuple(
+            g.title for g in self.draft.games
+        ):
+            raise ValueError("Saved worlds do not match these titles. Edit narration manually.")
+        self.checkpoint("Writing real narration from the four saved worlds")
+        workflow = StoryWorkflow(
+            _provider("openai", self.draft.story, self.store.project / ".env"),
+            max_workers=self.draft.parallel_saves, progress=self.progress,
+        )
+        run_id = self.job_id + "-scripts"
+        # A resumed job may already point at its own completed narration branch.
+        cached = self.store.run_dir(run_id) / "story.json"
+        if cached.exists():
+            source = self.store.run_dir(StoryWorkflow.load(cached.parent).source_run_id)
+        run = workflow.rewrite_narration(
+            source, runs_dir=self.store.runs, run_id=run_id, settings=self.draft.story,
+            prompts_dir=self.prompts, save_ids=targets,
+        )
+        for i, (game, written) in enumerate(zip(self.draft.games, games_from_story(run)), 1):
+            if f"save_{i:02}" in targets:
+                game.narration = written.narration
+                game.narration_origin = written.narration_origin
+        self.draft.source_story = run_id
+        self.job["outputs"]["scripts"] = run_id
+        self.completed_stage("scripts")
+        self.checkpoint()
+
+    def validate_scripts(self):
+        if self.draft.render.polish.enabled:
+            from save_reel.story_tiers import TIERS
+
+            if {g.survivability_tier for g in self.draft.games} != set(TIERS):
+                raise ValueError("Choose one best, good, risky and bad save before production")
+            for game in self.draft.games:
+                self.draft.render.polish.tier_intro(game.survivability_tier)
+        if any(g.needs_script for g in self.draft.games):
+            raise ValueError("Offline mock narration cannot be used in a finished reel")
+        digests = [narration_digest(g.narration) for g in self.draft.games]
+        if len(set(digests)) != 4:
+            raise ValueError(
+                "Two or more saves have identical narration. Use Rewrite narration only "
+                "or edit each script before generating speech. No speech request sent."
+            )
 
     def reuse_still(self, saved, reference, target, compiled):
         if self.request.regenerate and self.request.action == "stills":
@@ -141,7 +214,7 @@ class ProductionJob:
         content = BrollPipeline._read_artifact(source, saved, "image")
         destination = RunStore(target)
         run = BrollPipeline.load(destination)
-        run.artifacts["image"] = destination.write_bytes("broll_still.png", content, "image/png")
+        run.artifacts["image"] = destination.write_bytes(run.still_filename, content, "image/png")
         run.image_attempted = True
         run.image_request_id = saved.image_request_id
         run.image_usage = saved.image_usage
@@ -149,12 +222,15 @@ class ProductionJob:
         run.reused_still_run_id = reference
         BrollPipeline._save(destination, run)
 
-    def media_save(self, kind, number, game):
-        compiled = compile_game(self.draft, game, self.prompts)
+    def media_save(self, kind, number, game, beat_number=1):
+        compiled = compile_game(self.draft, game, self.prompts, beat_number)
         is_cart = kind == "cartridges"
         suffix = f"cart{number:02}" if is_cart else f"broll{number:02}"
+        if not is_cart and game.broll_beats:
+            suffix += f"-beat{beat_number:02}"
         planned = self.job_id + "-" + suffix
-        reference = game.cartridge_run if is_cart else game.broll_run
+        reference = game.cartridge_run if is_cart else game.clip_run(beat_number)
+        environment, motion = game.clip_values(beat_number)
         pipeline = CartridgePipeline(None) if is_cart else BrollPipeline(None, None)
         reuse = None
         saved = None
@@ -165,9 +241,10 @@ class ProductionJob:
                 and saved.settings == self.draft.cartridge
                 and saved.prompt == compiled["cartridge"]
                 if is_cart
-                else saved.values == game.environment
-                and saved.motion == game.motion
-                and saved.settings == self.draft.broll
+                else saved.values == environment
+                and saved.motion == motion
+                and saved.settings.model_dump(exclude={"clips_per_save"})
+                == self.draft.broll.model_dump(exclude={"clips_per_save"})
                 and saved.still_prompt == compiled["still"]
                 and saved.video_prompt == compiled["video"]
             )
@@ -187,11 +264,12 @@ class ProductionJob:
                 )
             else:
                 pipeline.prepare(
-                    game.environment,
-                    game.motion,
+                    environment,
+                    motion,
                     self.draft.broll,
                     runs_dir=self.store.runs,
                     run_id=run_id,
+                    beat_number=beat_number if game.broll_beats else None,
                     still_template_version=self.draft.still_version,
                     video_template_version=self.draft.video_version,
                     prompts_dir=self.prompts,
@@ -203,7 +281,7 @@ class ProductionJob:
         if is_cart:
             game.cartridge_run = run_id
         else:
-            game.broll_run = run_id
+            game.set_clip_run(beat_number, run_id)
         self.checkpoint()
         command = "resume-cartridge" if is_cart else "resume-broll"
         extra = ["--image-only"] if kind == "stills" else []
@@ -217,23 +295,22 @@ class ProductionJob:
         self.checkpoint("Rendering the reel with FFmpeg")
         games = []
         for number, game in enumerate(self.draft.games, 1):
-            if not game.cartridge_run or not game.broll_run:
+            numbers = game.clip_numbers(self.draft.broll.clips_per_save)
+            if not game.cartridge_run or any(not game.clip_run(i) for i in numbers):
                 raise ValueError(f"Save {number:02} needs a cartridge and B-roll clip first")
             cart = CartridgePipeline.load(RunStore(self.store.run_dir(game.cartridge_run)))
-            roll = BrollPipeline.load(RunStore(self.store.run_dir(game.broll_run)))
             compiled = compile_game(self.draft, game, self.prompts)
-            if (
-                cart.values != game.cartridge
-                or roll.values != game.environment
-                or roll.motion != game.motion
-                or cart.prompt != compiled["cartridge"]
-                or roll.still_prompt != compiled["still"]
-                or roll.video_prompt != compiled["video"]
-            ):
-                raise ValueError(
-                    f"Save {number:02} media no longer matches its variables/prompts. "
-                    "Generate the changed media stage first."
-                )
+            compatible = cart.values == game.cartridge and cart.prompt == compiled["cartridge"]
+            for beat in numbers:
+                roll = BrollPipeline.load(RunStore(self.store.run_dir(game.clip_run(beat))))
+                env, motion = game.clip_values(beat)
+                compiled = compile_game(self.draft, game, self.prompts, beat)
+                compatible &= (roll.values == env and roll.motion == motion
+                               and roll.still_prompt == compiled["still"]
+                               and roll.video_prompt == compiled["video"])
+            if not compatible:
+                raise ValueError(f"Save {number:02} media no longer matches its variables/prompts. "
+                                 "Generate the changed media stage first.")
             values_file = self.folder / f"cartridge-{number:02}.json"
             write_json(values_file, game.cartridge.model_dump(mode="json", by_alias=True))
             games.append(
@@ -241,7 +318,7 @@ class ProductionJob:
                     title=game.title,
                     values_file=str(values_file),
                     cartridge_run_id=game.cartridge_run,
-                    broll_run_ids=(game.broll_run,),
+                    broll_run_ids=tuple(game.clip_run(i) for i in numbers),
                 )
             )
         collection = RenderCollection(
@@ -288,7 +365,9 @@ class ProductionJob:
                 script = NarrationScript(
                     intro=INTRO_SCRIPT,
                     games=tuple(
-                        NarrationGame(title=g.title, text=g.narration) for g in self.draft.games
+                        NarrationGame(title=g.title, text=g.narration,
+                                      survivability_tier=g.survivability_tier)
+                        for g in self.draft.games
                     ),
                 )
                 reuse = None
@@ -314,7 +393,8 @@ class ProductionJob:
             self.draft.last_narration = run_id
             self.checkpoint()
             pipeline.execute(
-                RunStore(target), max_workers=self.draft.parallel_saves, progress=self.progress
+                RunStore(target), max_workers=self.draft.speech_parallel_saves,
+                progress=self.progress,
             )
         for stage in ("speech", "compose"):
             self.completed_stage(stage)
@@ -334,6 +414,9 @@ class ProductionJob:
                 )
             ):
                 self.stories()
+            if action in ("scripts", "narrate", "full"):
+                self.scripts(force=action == "scripts")
+                self.validate_scripts()
             if action in ("cartridges", "full"):
                 self.media("cartridges")
             if action in ("stills", "videos", "full"):

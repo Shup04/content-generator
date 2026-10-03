@@ -3,6 +3,7 @@
 import json
 from importlib.resources import files
 
+from save_reel.broll_beats import BrollBeat
 from save_reel.providers.mock_story_v1 import MockStoryProvider as LegacyMockStoryProvider
 from save_reel.story_models import (
     CartridgeVariables,
@@ -62,6 +63,7 @@ class MockStoryProvider:
             for offset, fixture in enumerate(choices, 1):
                 data = dict(fixture["concept"])
                 data["candidate_id"] = f"{context['save_id']}_candidate_{offset}"
+                data["survivability_tier"] = context["seed"].get("survivability_tier")
                 candidates.append(WorldConcept.model_validate(data))
             result = WorldCandidateSet(candidates=tuple(candidates))
         elif stage == "review":
@@ -107,6 +109,7 @@ class MockStoryProvider:
             fixture = next(f for f in fixtures if f["concept"]["title"] == c.title)
             result = FinalStory(
                 brief=SurvivalBrief(
+                    survivability_tier=c.survivability_tier,
                     title=c.title,
                     premise=c.premise,
                     surface_promise=c.surface_attraction,
@@ -143,6 +146,16 @@ class MockStoryProvider:
                     environmental_motion="A faint glow moves over the nearby surfaces.",
                     shot_composition=f"Eye-level view toward {c.visual_hook}.",
                     key_surfaces=(c.dominant_material,),
+                    broll_beats=(
+                        BrollBeat(type="establishing", description=c.premise,
+                                  shot_composition="Wide eye-level view along "
+                                  f"{c.architecture_style}.",
+                                  camera_motion="Gentle forward drift with a steady horizon."),
+                        BrollBeat(type="detail", description=c.visual_hook,
+                                  shot_composition="Close side view of the daily-use object, "
+                                  "seen from a nearby work area with the wider space offscreen.",
+                                  camera_motion="Restrained lateral drift past the close subject."),
+                    ),
                 ),
             )
         elif stage == "narration":

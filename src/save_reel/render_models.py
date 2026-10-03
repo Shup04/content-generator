@@ -7,6 +7,7 @@ from pydantic import Field, model_validator
 
 from save_reel.models import Artifact, Model, RunId, StageState, StageStatus, Text, utc_now
 from save_reel.opener_style import OpenerStyle
+from save_reel.polish_models import ReelPolish
 
 
 class RenderGame(Model):
@@ -36,6 +37,7 @@ class BobMotion(Model):
 
 
 class RenderSettings(Model):
+    polish: ReelPolish = Field(default_factory=ReelPolish)
     opener: OpenerStyle = Field(default_factory=OpenerStyle)
     width: Annotated[int, Field(ge=180, le=2160)] = 1080
     height: Annotated[int, Field(ge=320, le=3840)] = 1920
@@ -72,13 +74,14 @@ class RenderSettings(Model):
 
 
 class TimelineSegment(Model):
-    kind: Literal["intro", "countdown", "broll"]
+    kind: Literal["intro", "countdown", "save_intro", "broll"]
     start: float
     duration: float
     title: Text | None = None
     save_number: int | None = None
     clip_number: int | None = None
     source_run_id: RunId | None = None
+    source_run_ids: tuple[RunId, ...] = ()  # Grouped, speech-timed world section.
 
 
 def build_timeline(
@@ -92,6 +95,21 @@ def build_timeline(
     ]
     start = settings.intro_seconds + settings.countdown_seconds
     for save_number, game in enumerate(collection.games, 1):
+        if settings.polish.enabled:
+            duration = round(settings.polish.title_seconds * settings.fps) / settings.fps
+            timeline.append(TimelineSegment(
+                kind="save_intro", start=start, duration=duration,
+                title=game.title, save_number=save_number,
+            ))
+            start += duration
+            timeline.append(TimelineSegment(
+                kind="broll", start=start, duration=settings.clip_seconds,
+                title=game.title, save_number=save_number, clip_number=1,
+                source_run_id=game.broll_run_ids[0],
+                source_run_ids=game.broll_run_ids,
+            ))
+            start += settings.clip_seconds
+            continue
         for clip_number, run_id in enumerate(game.broll_run_ids, 1):
             timeline.append(
                 TimelineSegment(

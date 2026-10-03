@@ -7,6 +7,7 @@ import re
 import shutil
 import textwrap
 import threading
+import time
 from contextlib import contextmanager
 from pathlib import Path
 
@@ -16,6 +17,7 @@ from save_reel.narration_models import (
     NarrationCue,
     NarrationRun,
     NarrationScript,
+    SpeechFailure,
     SpeechMetadata,
     SpeechSettings,
     narration_cues,
@@ -29,7 +31,7 @@ from save_reel.opener import (
 from save_reel.opener_style import INTRO_SCRIPT
 from save_reel.pipeline import run_logging
 from save_reel.providers.media import MediaError
-from save_reel.providers.speech import SpeechProvider
+from save_reel.providers.speech import SpeechProvider, SpeechRequestRejected
 from save_reel.render_models import RenderRun, build_timeline
 from save_reel.rendering import ReelRenderer, draw_text, probe_media, write_countdown_audio
 from save_reel.storage import RunStore
@@ -208,6 +210,7 @@ class NarrationPipeline:
                     key.startswith("ui_")
                     or artifact.path.endswith("/cartridge.png")
                     or key.startswith(("text/save_", "text/count"))
+                    or (render.settings.polish.enabled and key.startswith(("inputs/", "text/")))
                 ):
                     run.artifacts[key] = store.write_bytes(
                         artifact.path, checked_bytes(source, artifact), artifact.media_type
@@ -315,22 +318,25 @@ class NarrationPipeline:
 
         def record(cue):
             report("speech", cue.cue_id, "running")
+            with lock:
+                if cue.audio and cue.metadata:
+                    logger.info("Reusing narration: %s", cue.cue_id)
+                    report("speech", cue.cue_id, "completed")
+                    return
+                if cue.attempted:
+                    original = cue.failure.message if cue.failure else cue.stage.error
+                    raise MediaError(
+                        f"{cue.cue_id}: speech request was attempted without a saved result; "
+                        "check ElevenLabs history before starting a new run. No duplicate sent."
+                        + (f" Original failure: {original}" if cue.failure else "")
+                    )
+                if self.provider is None:
+                    raise MediaError("An ElevenLabs speech provider is required")
+                cue.attempted = True
+                cue.failure = None
+                cue.stage = StageState(status=StageStatus.RUNNING, started_at=utc_now())
+                self._save(store, run)
             try:
-                with lock:
-                    if cue.audio and cue.metadata:
-                        logger.info("Reusing narration: %s", cue.cue_id)
-                        report("speech", cue.cue_id, "completed")
-                        return
-                    if cue.attempted:
-                        raise MediaError(
-                            f"{cue.cue_id}: speech request was attempted without a saved result; "
-                            "check ElevenLabs history before starting a new run. No duplicate sent."
-                        )
-                    if self.provider is None:
-                        raise MediaError("An ElevenLabs speech provider is required")
-                    cue.attempted = True
-                    cue.stage = StageState(status=StageStatus.RUNNING, started_at=utc_now())
-                    self._save(store, run)
                 logger.info("Generating narration: %s (%d characters)", cue.cue_id, len(cue.text))
                 speech = self.provider.generate(cue.text, run.settings)
                 audio = store.write_bytes(f"speech/{cue.cue_id}.mp3", speech.content, "audio/mpeg")
@@ -342,22 +348,79 @@ class NarrationPipeline:
                     cue.audio, cue.metadata = audio, metadata
                     cue.stage.status = StageStatus.COMPLETED
                     cue.stage.finished_at = utc_now()
+                    cue.failure = None
                     self._save(store, run)
                 report("speech", cue.cue_id, "completed")
             except Exception as exc:
                 with lock:
-                    cue.stage.status = StageStatus.FAILED
-                    cue.stage.error = (
-                        str(exc) if isinstance(exc, MediaError) else type(exc).__name__
+                    rejected = isinstance(exc, SpeechRequestRejected)
+                    message = str(exc) if isinstance(exc, MediaError) else type(exc).__name__
+                    # A confirmed rejection is safe to resubmit; timeouts, server failures
+                    # and malformed successes retain the duplicate-request guard.
+                    if rejected:
+                        cue.attempted = False
+                    cue.failure = SpeechFailure(
+                        message=message,
+                        outcome="rejected" if rejected else "uncertain",
+                        http_status=exc.status_code if rejected else None,
+                        provider_code=exc.code if rejected else None,
+                        retryable=exc.retryable if rejected else False,
                     )
+                    cue.stage.status = StageStatus.FAILED
+                    cue.stage.error = message
                     cue.stage.finished_at = utc_now()
                     self._save(store, run)
-                report("speech", cue.cue_id, "failed")
+                logger.warning("%s: %s", cue.cue_id, message)
                 raise
 
-        parallel_each(record, run.cues, max_workers)
+        pending = list(run.cues)
+        for attempt in range(3):
+            failures = []
+
+            def attempt_cue(cue):
+                try:
+                    record(cue)
+                except Exception as exc:
+                    with lock:
+                        failures.append((cue, exc))
+                    report("speech", cue.cue_id, "failed")
+                    if (max_workers if attempt == 0 else 1) == 1 and (
+                        not isinstance(exc, SpeechRequestRejected) or not exc.retryable
+                    ):
+                        raise
+
+            # Finish the current wave before retrying a rejected request. Retry waves
+            # use a single worker, leaving completed recordings untouched.
+            parallel_each(attempt_cue, pending, max_workers if attempt == 0 else 1)
+            if not failures:
+                return
+            terminal = [exc for _, exc in failures
+                        if not isinstance(exc, SpeechRequestRejected) or not exc.retryable]
+            if terminal:
+                raise terminal[0]
+            if attempt == 2:
+                raise MediaError(
+                    "ElevenLabs is still limiting voice requests (HTTP 429). "
+                    "Completed recordings are saved. Wait a moment, then resume this job."
+                )
+            delay = max(2 ** (attempt + 1), *(exc.retry_after or 0 for _, exc in failures))
+            if delay > 60:
+                raise MediaError(
+                    f"ElevenLabs requested a {delay:.0f}-second wait (HTTP 429). "
+                    "Completed recordings are saved. Resume this job after that wait."
+                )
+            pending = [cue for cue, _ in failures]
+            for cue in pending:
+                report("speech", cue.cue_id, "waiting")
+            logger.info("Waiting %.1fs before retrying %d rejected voice requests serially",
+                        delay, len(pending))
+            time.sleep(delay)
 
     def _compose(self, store: RunStore, run: NarrationRun, logger) -> None:
+        if run.source_render.settings.polish.enabled:
+            from save_reel.polished_narration import compose_polished
+
+            return compose_polished(self, store, run, logger)
         plans, inputs = [], []
         console = "ui_display_font" in run.artifacts
         settings = run.source_render.settings.model_copy(deep=True)

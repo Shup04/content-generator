@@ -5,6 +5,7 @@ import logging
 from collections.abc import Sequence
 from pathlib import Path
 
+from save_reel.media_models import BrollSettings
 from save_reel.models import ConceptRequest
 from save_reel.pipeline import CreatePipeline
 from save_reel.prompting import BrollStillPromptCompiler, LabelPromptCompiler
@@ -65,10 +66,14 @@ def build_parser() -> argparse.ArgumentParser:
     generate.add_argument(
         "--image-quality", choices=("low", "medium", "high", "xhigh", "max"), default="medium"
     )
-    generate.add_argument("--duration", type=int, choices=range(4, 16), default=5)
-    generate.add_argument("--resolution", choices=("480P", "768P", "2K"), default="768P")
+    video_defaults = BrollSettings()
+    generate.add_argument("--duration", type=int, choices=range(4, 16),
+                          default=video_defaults.duration)
+    generate.add_argument("--resolution", choices=("480P", "768P", "2K"),
+                          default=video_defaults.resolution)
     generate.add_argument(
-        "--video-model", choices=("MiniMax-H3", "MiniMax-H3-Max"), default="MiniMax-H3"
+        "--video-model", choices=("MiniMax-H3", "MiniMax-H3-Max"),
+        default=video_defaults.video_model
     )
     resume = commands.add_parser(
         "resume-broll", help="Continue a saved B-roll run without regenerating completed media"

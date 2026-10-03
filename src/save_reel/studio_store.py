@@ -10,6 +10,7 @@ from uuid import uuid4
 
 from pydantic import TypeAdapter
 
+from save_reel.broll_beats import StudioBrollBeat
 from save_reel.models import RunId, utc_now
 from save_reel.narration_models import NarrationRun
 from save_reel.prompting import (
@@ -21,7 +22,8 @@ from save_reel.storage import RunStore
 from save_reel.story_export import visual_values
 from save_reel.story_pipeline import StoryWorkflow
 from save_reel.story_prompting import load_prompts, load_travelogue_prompts
-from save_reel.studio_models import StudioDraft, StudioGame
+from save_reel.story_tiers import TIERS
+from save_reel.studio_models import NarrationOrigin, StudioDraft, StudioGame, narration_digest
 
 MEDIA_FILES = {
     "reel.mp4",
@@ -31,6 +33,7 @@ MEDIA_FILES = {
     "preview.png",
     "story_review.txt",
     "subtitles.srt",
+    "broll_01_still.png", "broll_02_still.png", "broll_01.mp4", "broll_02.mp4",
 }
 
 # Presets contain reusable production choices, never reel content or generated assets.
@@ -42,6 +45,7 @@ PRESET_FIELDS = {
     "speech",
     "prompts",
     "parallel_saves",
+    "speech_parallel_saves",
     "cartridge_version",
     "still_version",
     "video_version",
@@ -52,6 +56,9 @@ def is_finished_reel(folder: Path) -> bool:
     try:
         run = NarrationRun.model_validate_json((folder / "narration.json").read_text())
         artifact = run.artifacts.get("reel")
+        expected = {"intro", "save_01", "save_02", "save_03", "save_04"}
+        if run.source_render.settings.polish.enabled:
+            expected |= {f"title_{i:02}" for i in range(1, 5)}
         return bool(
             run.run_id == folder.name
             and run.status == "completed"
@@ -60,8 +67,8 @@ def is_finished_reel(folder: Path) -> bool:
                 for k in ("speech", "compose")
             )
             and {c.cue_id for c in run.cues}
-            == {"intro", "save_01", "save_02", "save_03", "save_04"}
-            and len(run.cues) == 5
+            == expected
+            and len(run.cues) == len(expected)
             and all(
                 c.stage.status == "completed"
                 and c.audio
@@ -108,22 +115,24 @@ def snapshot_prompts(draft: StudioDraft, target: Path) -> None:
         RunStore._write_atomic(target / name, text.encode())
 
 
-def compile_game(draft: StudioDraft, game: StudioGame, root: Path) -> dict:
-    env = game.environment.model_dump(by_alias=True)
+def compile_game(draft: StudioDraft, game: StudioGame, root: Path, beat_number=1) -> dict:
+    environment, motion = game.clip_values(beat_number)
+    env = environment.model_dump(by_alias=True)
     return {
         "cartridge": CartridgePromptCompiler(draft.cartridge_version, prompts_dir=root).render(
             game.cartridge.model_dump(by_alias=True, exclude_none=True)
         ),
         "still": BrollStillPromptCompiler(draft.still_version, prompts_dir=root).render(env),
         "video": BrollVideoPromptCompiler(draft.video_version, prompts_dir=root).render(
-            {**env, **game.motion.model_dump(by_alias=True)}
+            {**env, **motion.model_dump(by_alias=True)}
         ),
     }
 
 
 def validate_prompts(draft: StudioDraft, root: Path) -> None:
     snapshot_prompts(draft, root)
-    load_prompts(draft.story.prompt_version, root)
+    load_prompts(draft.story.prompt_version, root, draft.story.tier_prompt_version,
+                 draft.story.broll_prompt_version, draft.story.world_review_prompt_version)
     if draft.story.prompt_version == "v3" and draft.story.travelogue:
         load_travelogue_prompts(draft.story.travelogue.prompt_version, root)
     # Validate visual placeholders even before a draft has worlds.
@@ -152,8 +161,9 @@ def validate_prompts(draft: StudioDraft, root: Path) -> None:
     ):
         compiler(version, prompts_dir=root).render(dict.fromkeys(placeholders, "preview"))
     for game in draft.games:
-        if len(compile_game(draft, game, root)["video"].text) > 7000:
-            raise ValueError(f"{game.title}: compiled video prompt exceeds 7000 characters")
+        for beat in game.clip_numbers():
+            if len(compile_game(draft, game, root, beat)["video"].text) > 7000:
+                raise ValueError(f"{game.title}: compiled video prompt exceeds 7000 characters")
 
 
 @lru_cache(maxsize=512)
@@ -201,11 +211,39 @@ class StudioStore:
         return path
 
     def load(self, draft_id: str) -> StudioDraft:
-        return StudioDraft.model_validate_json(
+        draft = StudioDraft.model_validate_json(
             (self.drafts / f"{identifier(draft_id)}.json").read_text()
         )
+        draft.prompts = {**bundled_prompts(), **draft.prompts}
+        self.annotate_narration(draft)
+        return draft
+
+    def annotate_narration(self, draft: StudioDraft) -> None:
+        """Recover old drafts' actual script provenance, independent of model selectors."""
+        source = None
+        if draft.source_story and (
+            any(g.narration_origin is None for g in draft.games)
+            or all(g.survivability_tier is None for g in draft.games)
+        ):
+            source = StoryWorkflow.load(self.run_dir(draft.source_story))
+        originals = games_from_story(source) if source else ()
+        if originals and all(g.survivability_tier is None for g in draft.games):
+            for game in draft.games:
+                original = next((g for g in originals if g.title == game.title), None)
+                if original:
+                    game.survivability_tier = original.survivability_tier
+        for game in draft.games:
+            digest = narration_digest(game.narration)
+            if game.narration_origin and game.narration_origin.text_sha256 == digest:
+                continue
+            original = next((g for g in originals if g.title == game.title
+                             and narration_digest(g.narration) == digest), None)
+            game.narration_origin = original.narration_origin if original else NarrationOrigin(
+                provider="manual", text_sha256=digest,
+            )
 
     def save(self, draft: StudioDraft, *, check_revision=True) -> StudioDraft:
+        draft.prompts = {**bundled_prompts(), **draft.prompts}
         path = self.drafts / f"{identifier(draft.draft_id)}.json"
         if (
             check_revision
@@ -215,6 +253,7 @@ class StudioStore:
             raise ValueError("This draft changed in another tab. Reload before saving.")
         with tempfile.TemporaryDirectory(dir=self.root) as directory:
             validate_prompts(draft, Path(directory))
+        self.annotate_narration(draft)
         data = draft.model_dump(mode="json")
         data["revision"] += 1
         saved = StudioDraft.model_validate(data)
@@ -333,10 +372,13 @@ class StudioStore:
                     if row["kind"] == "cartridge" and not game.cartridge_run:
                         if CartridgePipeline.load(store).values == game.cartridge:
                             game.cartridge_run = row["run_id"]
-                    if row["kind"] == "broll" and not game.broll_run:
+                    if row["kind"] == "broll":
                         roll = BrollPipeline.load(store)
-                        if roll.values == game.environment and roll.motion == game.motion:
-                            game.broll_run = row["run_id"]
+                        for number in game.clip_numbers():
+                            env, motion = game.clip_values(number)
+                            if (not game.clip_run(number) and roll.values == env
+                                    and roll.motion == motion):
+                                game.set_clip_run(number, row["run_id"])
             except (ValueError, OSError):
                 continue
         return self.save(draft)
@@ -381,9 +423,29 @@ def games_from_story(story) -> tuple[StudioGame, ...]:
             StudioGame(
                 title=slot.final.brief.title,
                 narration=" ".join(slot.final.brief.narration),
+                survivability_tier=slot.final.brief.survivability_tier,
+                narration_origin=NarrationOrigin(
+                    provider=slot.narration_provider or story.provider,
+                    model=slot.narration_model or (
+                        story.settings.model_for("narration_prose_candidate")
+                        if story.provider == "openai" else story.model
+                    ),
+                    source_run=story.run_id,
+                    text_sha256=narration_digest(" ".join(slot.final.brief.narration)),
+                ),
                 cartridge=cart,
                 environment=env,
                 motion=motion,
+                broll_beats=tuple(StudioBrollBeat(**b.model_dump())
+                                  for b in slot.final.environment.broll_beats or ()),
             )
         )
+    if all(g.survivability_tier is None for g in games):
+        # Legacy worlds cannot be redesigned without invalidating their visuals.
+        # Rank saved severity, using title digest for stable ties independent of slot.
+        ranked = sorted(zip(games, story.saves, strict=True), key=lambda pair: (
+            pair[1].final.brief.severity, narration_digest(pair[0].title)
+        ))
+        for tier, (game, _) in zip(TIERS, ranked, strict=True):
+            game.survivability_tier = tier
     return tuple(games)

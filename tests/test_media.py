@@ -151,8 +151,8 @@ def test_minimax_v2_payload_poll_and_download_without_credentials(png):
         task = provider.query(task_id)
         assert provider.download(task.download_url) == mp4
     body = json.loads(requests[0].content)
-    assert body["model"] == "MiniMax-H3"
-    assert body["resolution"] == "768P"
+    assert body["model"] == "MiniMax-H3-Max"
+    assert body["resolution"] == "480P"
     assert body["duration"] == 5
     assert body["ratio"] == "adaptive"
     assert body["content"][1]["role"] == "first_frame"

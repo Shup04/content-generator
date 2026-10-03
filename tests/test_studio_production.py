@@ -15,6 +15,7 @@ from save_reel.broll import BrollPipeline
 from save_reel.cartridge import CartridgePipeline
 from save_reel.media_models import BrollSettings
 from save_reel.models import ConceptRequest, StageState, StageStatus
+from save_reel.polish_models import ReelPolish
 from save_reel.providers.media import GeneratedImage, MediaError, VideoTask
 from save_reel.providers.mock_story import MockStoryProvider
 from save_reel.render_models import RenderSettings
@@ -80,6 +81,8 @@ def test_failed_parallel_world_preserves_other_three_checkpoints(tmp_path):
 def test_presets_and_template_rollback_keep_stories_assets_and_snapshots(store, story):
     draft = store.create("My reel")
     draft.games = games_from_story(story)
+    for game in draft.games:
+        game.broll_beats = ()
     draft = store.save(draft)
     original = draft.model_copy(deep=True)
     key = "story_narration_prose_candidate/v3.txt"
@@ -111,6 +114,8 @@ def test_presets_and_template_rollback_keep_stories_assets_and_snapshots(store, 
 def test_video_change_or_force_reuses_exact_still(store, story, monkeypatch, change):
     draft = store.create()
     draft.games = games_from_story(story)
+    for game in draft.games:
+        game.broll_beats = ()
     draft = store.save(draft)
     initial = prepare_job(store, draft, "stills", save_number=1)
 
@@ -132,7 +137,8 @@ def test_video_change_or_force_reuses_exact_still(store, story, monkeypatch, cha
     if change == "motion":
         revised.games[0].motion.camera_motion = "Move gently forward."
     elif change == "model":
-        revised.broll.video_model = "MiniMax-H3-Max"
+        revised.broll.resolution = "768P"
+        revised.broll.video_model = "MiniMax-H3"
     revised = store.save(revised)
     next_job = prepare_job(
         store, revised, "videos", save_number=1, job_id="second", regenerate=change == "force"
@@ -182,6 +188,8 @@ def test_minimax_model_capabilities(model, resolution, duration, valid):
 def test_corrupt_reused_still_remains_blocked_on_resume(store, story, monkeypatch):
     draft = store.create()
     draft.games = games_from_story(story)
+    for game in draft.games:
+        game.broll_beats = ()
     draft = store.save(draft)
     initial = prepare_job(store, draft, "stills", save_number=1)
 
@@ -196,7 +204,8 @@ def test_corrupt_reused_still_remains_blocked_on_resume(store, story, monkeypatc
     reference = initial.draft.games[0].broll_run
     (store.runs / reference / "broll_still.png").write_bytes(b"corrupted")
     draft = store.load(draft.draft_id)
-    draft.broll.video_model = "MiniMax-H3-Max"
+    draft.broll.resolution = "768P"
+    draft.broll.video_model = "MiniMax-H3"
     draft = store.save(draft)
     job = prepare_job(store, draft, "videos", save_number=1, job_id="reuse-corrupt")
     calls = []
@@ -220,7 +229,9 @@ def test_full_job_exports_real_mp4_and_library_excludes_incomplete_runs(
     _, sources, collection, _ = local_assets
     _, audio, _ = narration_assets
     video = (sources / collection.games[0].broll_run_ids[0] / "broll_video.mp4").read_bytes()
-    monkeypatch.setattr("save_reel.story_cli._provider", lambda *args: MockStoryProvider())
+    from test_studio_scripts import FakeWriter
+
+    monkeypatch.setattr("save_reel.story_cli._provider", lambda *args: FakeWriter())
     monkeypatch.setenv("ELEVENLABS_API_KEY", "fake-key")
     speech = FakeSpeech(audio)
     monkeypatch.setattr(elevenlabs_speech, "ElevenLabsSpeechProvider", lambda *args: speech)
@@ -239,7 +250,7 @@ def test_full_job_exports_real_mp4_and_library_excludes_incomplete_runs(
         def submit(self, image, prompt, settings):
             with call_lock:
                 calls["videos"] += 1
-            assert calls["stills"] == 4  # All stills completed before any video submission.
+            assert calls["stills"] == 8  # All stills completed before any video submission.
             return "test-task"
 
         def query(self, task_id):
@@ -264,14 +275,15 @@ def test_full_job_exports_real_mp4_and_library_excludes_incomplete_runs(
     draft = store.create("Complete production test")
     draft.seed = 41
     draft.render = RenderSettings(
-        width=216, height=384, intro_seconds=1, countdown_seconds=1, clip_seconds=0.5
+        width=216, height=384, intro_seconds=1, countdown_seconds=1, clip_seconds=2,
+        polish=ReelPolish(enabled=True),
     )
     draft = store.save(draft)
     job = prepare_job(store, draft, "full")
     job.execute()
     assert job.job["status"] == "completed", job.job.get("error")
-    assert calls == {"cartridges": 4, "stills": 4, "videos": 4}
-    assert speech.calls == 5
+    assert calls == {"cartridges": 4, "stills": 8, "videos": 8}
+    assert speech.calls == 9
     progress = job.job["progress"]
     assert progress["completed"] == progress["total"]
     output = store.runs / job.job["outputs"]["reel"]
@@ -279,12 +291,15 @@ def test_full_job_exports_real_mp4_and_library_excludes_incomplete_runs(
     streams = probe_media(output / "reel.mp4")["streams"]
     assert {s["codec_type"] for s in streams} == {"audio", "video"}
     assert (output / "subtitles.srt").exists()
+    footage = json.loads((output / "footage_plan.json").read_text())
+    assert all([p["index"] for p in parts if p["kind"] == "video"] == [0, 1]
+               for parts in footage.values())
     assert [r["run_id"] for r in store.list_runs() if r["finished"]] == [output.name]
     # Repeating the completed job reuses every paid result.
     job.execute()
     assert job.job["status"] == "completed"
-    assert calls == {"cartridges": 4, "stills": 4, "videos": 4}
-    assert speech.calls == 5
+    assert calls == {"cartridges": 4, "stills": 8, "videos": 8}
+    assert speech.calls == 9
     manifest = output / "narration.json"
     raw = json.loads(manifest.read_text())
     raw["status"] = "failed"

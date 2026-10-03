@@ -1,14 +1,43 @@
-"""ElevenLabs V1 speech with timestamps; V2 voice discovery. No automatic retries."""
+"""ElevenLabs speech adapter. Typed rejections let the pipeline retry safely."""
 
 import base64
 import binascii
+import math
+from datetime import UTC, datetime
+from email.utils import parsedate_to_datetime
 
 import httpx
 from pydantic import ValidationError
 
 from save_reel.narration_models import SpeechAlignment, SpeechMetadata, SpeechSettings
 from save_reel.providers.media import MediaError
-from save_reel.providers.speech import GeneratedSpeech
+from save_reel.providers.speech import GeneratedSpeech, SpeechRequestRejected
+
+ERROR_HINTS = {
+    "too_many_concurrent_requests": "Too many voice requests are running at once.",
+    "concurrent_limit_exceeded": "Too many voice requests are running at once.",
+    "rate_limit_exceeded": "The voice request rate limit was reached.",
+    "system_busy": "ElevenLabs is busy.",
+    "quota_exceeded": "ElevenLabs voice credits are exhausted.",
+    "insufficient_credits": "ElevenLabs voice credits are exhausted.",
+    "invalid_api_key": "Check ELEVENLABS_API_KEY in the local .env file.",
+    "voice_not_found": "The configured ElevenLabs voice was not found.",
+    "insufficient_permissions": "The key does not have the required voice permissions.",
+}
+
+
+def retry_delay(value):
+    """Accept seconds or an HTTP date; never expose arbitrary response headers."""
+    if not value:
+        return None
+    try:
+        delay = float(value)
+    except ValueError:
+        try:
+            delay = (parsedate_to_datetime(value) - datetime.now(UTC)).total_seconds()
+        except (ValueError, TypeError, OverflowError):
+            return None
+    return max(0.0, delay) if math.isfinite(delay) else None
 
 
 class ElevenLabsSpeechProvider:
@@ -31,9 +60,30 @@ class ElevenLabsSpeechProvider:
             response.raise_for_status()
             return response
         except httpx.HTTPStatusError as exc:
+            status = exc.response.status_code
+            # Allowlist codes, never echo raw error messages or response bodies.
+            code = None
+            try:
+                body = exc.response.json()
+                detail = body.get("detail", body.get("error", body))
+                value = detail.get("status", detail.get("code"))
+                if value in ERROR_HINTS:
+                    code = value
+            except (ValueError, TypeError, AttributeError):
+                pass
+            if status in (400, 401, 402, 403, 404, 422, 429):
+                hint = ERROR_HINTS.get(code, (
+                    "ElevenLabs is busy or the voice request limit was reached."
+                    if status == 429 else "Check voice settings, key permissions and credits."
+                ))
+                raise SpeechRequestRejected(
+                    f"ElevenLabs rejected the request (HTTP {status}). {hint}",
+                    status_code=status, code=code,
+                    retry_after=retry_delay(exc.response.headers.get("retry-after")),
+                ) from None
             raise MediaError(
-                f"ElevenLabs request failed (HTTP {exc.response.status_code}). "
-                "Check the key's Text to Speech/Voices permissions, voice access, and credits."
+                f"ElevenLabs request failed (HTTP {status}); generation outcome is unknown. "
+                "No duplicate request was sent."
             ) from None
         except httpx.RequestError:
             raise MediaError(

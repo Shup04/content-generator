@@ -204,13 +204,18 @@ class ReelRenderer:
                 videos = [v for v in info.get("streams", []) if v.get("codec_type") == "video"]
                 if not videos:
                     raise MediaError(f"B-roll has no video stream: {path}")
-                if not settings.loop_short_clips and float(
+                if not settings.polish.enabled and (
+                    not settings.loop_short_clips or len(game.broll_run_ids) > 1
+                ) and float(
                     videos[0].get("duration", info["format"]["duration"])
                 ) < settings.clip_seconds - 0.001:
                     raise MediaError(
                         f"B-roll is shorter than {settings.clip_seconds} seconds: {path}"
                     )
                 sources.append((path, f"inputs/save_{number:02}/broll_{clip_number:02}.mp4"))
+                if settings.polish.enabled and "image" in broll.artifacts:
+                    sources.append((self._source(broll_store, broll.artifacts["image"]),
+                                    f"inputs/save_{number:02}/broll_{clip_number:02}_still.png"))
         store = RunStore.create(runs_dir, run_id)
         run = RenderRun(
             run_id=store.run_dir.name,
@@ -302,12 +307,38 @@ class ReelRenderer:
                 ]
                 for segment in run.timeline[2:]:
                     number, clip_number = segment.save_number, segment.clip_number
+                    if settings.polish.enabled:
+                        from save_reel.reel_polish import title_scene, world_scene
+
+                        if segment.kind == "save_intro":
+                            args, graph = title_scene(
+                                settings, number, segment.title, segment.duration
+                            )
+                            name = f"save_{number:02}_title"
+                        else:
+                            args, graph, footage = world_scene(
+                                self, store, settings, number, segment.title, segment.duration,
+                                len(collection.games[number - 1].broll_run_ids),
+                            )
+                            name = f"save_{number:02}_world"
+                            for item in footage:
+                                if item["kind"] == "still":
+                                    run.artifacts[item["source"]] = self._record(
+                                        store, item["source"]
+                                    )
+                            run.artifacts[f"footage/{number}"] = store.write_text(
+                                f"footage_{number:02}.json", json.dumps(footage, indent=2),
+                                "application/json",
+                            )
+                        segments.append(encode_stage(name, args, graph, segment.duration))
+                        continue
                     name = f"save_{number:02}_clip_{clip_number:02}"
                     segments.append(
                         encode_stage(
                             name,
                             [
-                                *(["-stream_loop", "-1"] if settings.loop_short_clips else []),
+                                *(["-stream_loop", "-1"] if settings.loop_short_clips
+                                  and len(collection.games[number - 1].broll_run_ids) == 1 else []),
                                 "-i",
                                 f"inputs/save_{number:02}/broll_{clip_number:02}.mp4",
                             ],

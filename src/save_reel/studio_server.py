@@ -208,7 +208,10 @@ class StudioHandler(BaseHTTPRequestHandler):
                         result = [
                             {
                                 key: prompt.text
-                                for key, prompt in compile_game(draft, game, root).items()
+                                for beat in game.clip_numbers()
+                                for name, prompt in compile_game(draft, game, root, beat).items()
+                                if beat == 1 or name != "cartridge"
+                                for key in [name if beat == 1 else f"{name}_{beat:02}"]
                             }
                             for game in draft.games
                         ]

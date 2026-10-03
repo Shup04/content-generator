@@ -7,6 +7,7 @@ from pydantic import Field, model_validator
 
 from save_reel.models import Artifact, Model, RunId, StageState, StageStatus, Text, utc_now
 from save_reel.render_models import RenderRun, TimelineSegment
+from save_reel.story_tiers import TIERS, SurvivabilityTier
 
 Seconds = Annotated[float, Field(ge=0, allow_inf_nan=False)]
 ScriptText = Annotated[Text, Field(max_length=1000)]
@@ -15,6 +16,7 @@ ScriptText = Annotated[Text, Field(max_length=1000)]
 class NarrationGame(Model):
     title: Text
     text: ScriptText
+    survivability_tier: SurvivabilityTier | None = None
 
 
 class NarrationScript(Model):
@@ -57,6 +59,15 @@ class SpeechMetadata(Model):
     character_cost: int | None = None
 
 
+class SpeechFailure(Model):
+    message: Text
+    occurred_at: datetime = Field(default_factory=utc_now)
+    outcome: Literal["rejected", "uncertain"]
+    http_status: int | None = Field(default=None, ge=400, le=599)
+    provider_code: str | None = None
+    retryable: bool = False
+
+
 class NarrationCue(Model):
     cue_id: RunId
     text: ScriptText
@@ -66,6 +77,7 @@ class NarrationCue(Model):
     stage: StageState = Field(default_factory=StageState)
     audio: Artifact | None = None
     metadata: Artifact | None = None
+    failure: SpeechFailure | None = None
 
 
 def narration_cues(render: RenderRun, script: NarrationScript) -> tuple[NarrationCue, ...]:
@@ -81,10 +93,19 @@ def narration_cues(render: RenderRun, script: NarrationScript) -> tuple[Narratio
         segments = [s for s in render.timeline if s.kind == "broll" and s.save_number == number]
         if not segments:
             raise ValueError(f"No rendered B-roll for save {number}")
+        polish = render.settings.polish
+        if polish.enabled:
+            if {g.survivability_tier for g in script.games} != set(TIERS):
+                raise ValueError("Choose one best, good, risky and bad save before narration")
+            title = next(s for s in render.timeline if s.kind == "save_intro"
+                         and s.save_number == number)
+            cues.append(NarrationCue(cue_id=f"title_{number:02}", text=game.title + ".",
+                                    start=title.start, duration=title.duration))
         cues.append(
             NarrationCue(
                 cue_id=f"save_{number:02}",
-                text=game.text,
+                text=(polish.tier_intro(game.survivability_tier) + " " + game.text
+                      if polish.enabled else game.text),
                 start=segments[0].start,
                 duration=sum(s.duration for s in segments),
             )

@@ -28,6 +28,7 @@ class BrollPipeline:
         *,
         runs_dir: Path = Path("runs"),
         run_id: str | None = None,
+        beat_number: int | None = None,
         prompts_dir: Path | None = None,
         still_template_version: str = "v2",
         video_template_version: str = "v2",
@@ -43,6 +44,7 @@ class BrollPipeline:
         store = RunStore.create(runs_dir, run_id)
         run = BrollRun(
             run_id=store.run_dir.name,
+            beat_number=beat_number,
             values=values,
             motion=motion,
             settings=settings,
@@ -138,14 +140,14 @@ class BrollPipeline:
                     )
                     result = self.image_provider.generate(run.still_prompt.text, run.settings)
                     run.artifacts["image"] = store.write_bytes(
-                        "broll_still.png", result.content, "image/png"
+                        run.still_filename, result.content, "image/png"
                     )
                     run.image_request_id = result.request_id
                     run.image_usage = result.usage
                     run.stages[active_stage].status = StageStatus.COMPLETED
                     run.stages[active_stage].finished_at = utc_now()
                     self._save(store, run)
-                    logger.info("Saved B-roll still: %s", store.run_dir / "broll_still.png")
+                    logger.info("Saved B-roll still: %s", store.run_dir / run.still_filename)
                 image = self._read_artifact(store, run, "image")
                 if image_only:
                     run.status = (
@@ -194,13 +196,13 @@ class BrollPipeline:
                     if task.status == "succeeded":
                         content = self.video_provider.download(task.download_url)
                         run.artifacts["video"] = store.write_bytes(
-                            "broll_video.mp4", content, "video/mp4"
+                            run.video_filename, content, "video/mp4"
                         )
                         run.stages[active_stage].status = StageStatus.COMPLETED
                         run.stages[active_stage].finished_at = utc_now()
                         run.status = StageStatus.COMPLETED
                         self._save(store, run)
-                        logger.info("Saved B-roll video: %s", store.run_dir / "broll_video.mp4")
+                        logger.info("Saved B-roll video: %s", store.run_dir / run.video_filename)
                         return run
                     remaining = deadline - time.monotonic()
                     if remaining <= 0:

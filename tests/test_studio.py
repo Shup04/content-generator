@@ -40,7 +40,8 @@ def store(tmp_path):
 
 
 def prepare_job(
-    store, draft, action="stories", *, job_id="studio-test", regenerate=False, save_number=None
+    store, draft, action="stories", *, job_id="studio-test", regenerate=False, save_number=None,
+    beat_number=None
 ):
     folder = store.jobs / job_id
     folder.mkdir()
@@ -50,6 +51,7 @@ def prepare_job(
         action=action,
         regenerate=regenerate,
         save_number=save_number,
+        beat_number=beat_number,
     )
     write_json(folder / "draft.json", draft.model_dump(mode="json"))
     snapshot_prompts(draft, folder / "prompts")
@@ -172,15 +174,16 @@ def test_stills_skip_minimax_and_video_resume_keeps_same_run(store, story, monke
     stills = prepare_job(store, draft, "stills", save_number=3)
     stills.execute()
     assert stills.job["status"] == "completed"
-    assert len(calls) == 1 and "--image-only" in calls[0]
-    reference = stills.draft.games[2].broll_run
+    assert len(calls) == 2 and all("--image-only" in call for call in calls)
+    references = [stills.draft.games[2].clip_run(i) for i in (1, 2)]
     video = prepare_job(store, stills.draft, "videos", job_id="video", save_number=3)
     video.execute()
     assert video.job["status"] == "failed"  # Fake command has not finished the remote task.
     assert "Resume this job" in video.job["error"]
-    assert video.draft.games[2].broll_run == reference
+    assert [video.draft.games[2].clip_run(i) for i in (1, 2)] == references
     assert "--image-only" not in calls[-1]
-    assert BrollPipeline.load(RunStore(store.runs / reference)).settings.duration == 10
+    assert all(BrollPipeline.load(RunStore(store.runs / ref)).settings.duration == 5
+               for ref in references)
 
 
 def test_full_job_orders_existing_stages(store, story, monkeypatch):
@@ -192,6 +195,9 @@ def test_full_job_orders_existing_stages(store, story, monkeypatch):
     def fake_stories(self):
         order.append("stories")
         self.draft.games = games_from_story(story)
+        for i, game in enumerate(self.draft.games):
+            game.narration = f"A distinct authored script for save {i}."
+            game.narration_origin = None
 
     monkeypatch.setattr(ProductionJob, "stories", fake_stories)
     monkeypatch.setattr(ProductionJob, "media", lambda self, kind: order.append(kind))
@@ -254,6 +260,8 @@ def test_http_edit_preview_import_and_no_credentials_disclosure(server, story, m
     assert status == 200
     assert len(json.loads(body)) == 4
     assert "[GAME_TITLE]" not in json.loads(body)[0]["still"]
+    previews = json.loads(body)
+    assert all(p["still"] != p["still_02"] and p["video"] != p["video_02"] for p in previews)
     assert not list(server.store.runs.glob("*/broll.json"))
     run_dir = server.store.runs / story.run_id
     run_dir.mkdir()
@@ -349,7 +357,7 @@ def test_studio_renders_narrates_and_reuses_unchanged_speech(
         games.append(
             StudioGame(
                 title=original.title,
-                narration=spoken.text,
+                narration=f"{spoken.text} This is {original.title}.",
                 cartridge=cart.values,
                 environment=roll.values,
                 motion=roll.motion,

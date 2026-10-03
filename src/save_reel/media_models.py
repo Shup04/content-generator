@@ -47,9 +47,10 @@ class ImageSettings(Model):
 class BrollSettings(ImageSettings):
     image_size: Literal["864x1536"] = "864x1536"
     image_background: Literal["opaque"] = "opaque"
-    video_model: Literal["MiniMax-H3", "MiniMax-H3-Max"] = "MiniMax-H3"
+    video_model: Literal["MiniMax-H3", "MiniMax-H3-Max"] = "MiniMax-H3-Max"
     duration: Annotated[int, Field(ge=4, le=15)] = 5
-    resolution: Literal["480P", "768P", "2K"] = "768P"
+    resolution: Literal["480P", "768P", "2K"] = "480P"
+    clips_per_save: int = Field(default=2, ge=1, le=2)
 
     @model_validator(mode="after")
     def video_capabilities(self):
@@ -65,6 +66,7 @@ class BrollRun(Model):
     schema_version: Literal["1.0"] = "1.0"
     kind: Literal["broll_generation"] = "broll_generation"
     run_id: RunId
+    beat_number: int | None = Field(default=None, ge=1, le=2)
     created_at: datetime = Field(default_factory=utc_now)
     values: BrollValues
     motion: MotionValues
@@ -85,6 +87,14 @@ class BrollRun(Model):
     # Persisted before each paid POST. An ambiguous request is never retried automatically.
     image_attempted: bool = False
     video_attempted: bool = False
+
+    @property
+    def still_filename(self) -> str:
+        return f"broll_{self.beat_number:02}_still.png" if self.beat_number else "broll_still.png"
+
+    @property
+    def video_filename(self) -> str:
+        return f"broll_{self.beat_number:02}.mp4" if self.beat_number else "broll_video.mp4"
 
 
 class CartridgeValues(Model):
