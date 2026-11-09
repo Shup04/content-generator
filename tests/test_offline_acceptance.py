@@ -225,6 +225,31 @@ def test_studio_four_world_two_beat_acceptance(tmp_path, monkeypatch):
     voice.write_bytes(audio)
     assert is_finished_reel(output)
 
+    # Existing files may be truncated or changed after a successful render.
+    # Exercise discovery again after warming its checksum cache each time.
+    for artifact in (voice, output / 'speech/save_04.json', result):
+        original_bytes = artifact.read_bytes()
+        for damaged in (b'', original_bytes[:1], bytes([original_bytes[0] ^ 1])
+                        + original_bytes[1:]):
+            try:
+                assert is_finished_reel(output)
+                artifact.write_bytes(damaged)
+                assert not is_finished_reel(output), artifact.name
+                assert not any(row['finished'] for row in store.list_runs())
+            finally:
+                artifact.write_bytes(original_bytes)
+            assert is_finished_reel(output)
+    external_voice = tmp_path / 'external-synthetic-voice.mp3'
+    external_voice.write_bytes(audio)
+    voice.unlink()
+    try:
+        voice.symlink_to(external_voice)
+        assert not is_finished_reel(output)
+    finally:
+        voice.unlink()
+        voice.write_bytes(audio)
+    assert is_finished_reel(output)
+
     # Load and save a historical single-beat draft without requesting additional visuals.
     legacy = store.load(draft.draft_id).model_dump(mode='json')
     legacy['draft_id'] = 'legacy-one-beat'

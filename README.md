@@ -115,8 +115,9 @@ The acceptance check verifies:
 - A decoded H.264/AAC MP4, dimensions/duration, audible tones in all nine cue windows,
   title-before-world timing, ordered clip colours in actual output frames, subtitle
   timestamps, and capped slowdown with same-world still fallback and no video looping.
-- Finished-library eligibility, exclusion of failed/missing-voice runs, and a repeated
-  completed job that reuses its output without additional provider calls.
+- Finished-library eligibility, exclusion of failed, missing, truncated or changed
+  media/voice files (including same-size corruption), and a repeated completed job
+  that reuses its output without additional provider calls.
 - A historical draft with one authored beat stays single-beat after load/save.
 
 This proves local orchestration and assembly with controlled inputs. It does not
@@ -213,8 +214,11 @@ save-reel-studio.service` to start it again after stopping it.
    time remaining. Technical logs are available in a collapsed section. A finished-reel
    job is complete only after the narrated MP4 and every planned voice cue exist:
    nine cues in polished mode, or five in the legacy layout.
-5. **Video library** defaults to **Finished reels only**. Partial narration jobs and
-   base renders are excluded. Search by reel name, title or run ID, and filter by type,
+5. **Video library** defaults to **Finished reels only**. Partial narration jobs,
+   base renders and outputs with missing or checksum-mismatched video/voice artifacts
+   are excluded. Checksums are streamed once per unchanged file version and cached
+   in memory; the first library scan after restart reads the finished media files.
+   Search by reel name, title or run ID, and filter by type,
    status or earliest date. Watch and download the finished MP4 directly.
 
 **Advanced: run or regenerate a single stage** is for targeted edits or tests. Its

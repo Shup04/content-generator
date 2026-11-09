@@ -1,5 +1,6 @@
 """Local drafts, validated template snapshots, and read-only run discovery."""
 
+import hashlib
 import json
 import re
 import tempfile
@@ -11,7 +12,7 @@ from uuid import uuid4
 from pydantic import TypeAdapter
 
 from save_reel.broll_beats import StudioBrollBeat
-from save_reel.models import RunId, utc_now
+from save_reel.models import Artifact, RunId, utc_now
 from save_reel.narration_models import NarrationRun
 from save_reel.prompting import (
     BrollStillPromptCompiler,
@@ -58,6 +59,28 @@ PRESET_FIELDS = {
 }
 
 
+def _file_signature(path: Path) -> tuple[int, ...]:
+    stat = path.stat()
+    return stat.st_dev, stat.st_ino, stat.st_size, stat.st_mtime_ns, stat.st_ctime_ns
+
+
+@lru_cache(maxsize=1024)
+def _matches_checksum(path: Path, expected: str, signature: tuple[int, ...]) -> bool:
+    # Reuse successful reads only while this exact file version remains unchanged.
+    # Stream large MP4s instead of loading them into memory during library discovery.
+    with path.open("rb") as stream:
+        actual = hashlib.file_digest(stream, "sha256").hexdigest()
+    return actual == expected and _file_signature(path) == signature
+
+
+def _intact_artifact(folder: Path, artifact: Artifact) -> bool:
+    path = (folder / artifact.path).resolve()
+    if not path.is_relative_to(folder.resolve()) or not path.is_file():
+        return False
+    signature = _file_signature(path)
+    return signature[2] > 0 and _matches_checksum(path, artifact.sha256, signature)
+
+
 def is_finished_reel(folder: Path) -> bool:
     try:
         run = NarrationRun.model_validate_json((folder / "narration.json").read_text())
@@ -79,14 +102,14 @@ def is_finished_reel(folder: Path) -> bool:
                 c.stage.status == "completed"
                 and c.audio
                 and c.metadata
-                and (folder / c.audio.path).is_file()
-                and (folder / c.metadata.path).is_file()
+                and _intact_artifact(folder, c.audio)
+                and _intact_artifact(folder, c.metadata)
                 for c in run.cues
             )
             and artifact
             and artifact.path == "reel.mp4"
             and (folder / artifact.path).resolve().parent == folder.resolve()
-            and (folder / artifact.path).stat().st_size > 0
+            and _intact_artifact(folder, artifact)
         )
     except (ValueError, OSError):
         return False
