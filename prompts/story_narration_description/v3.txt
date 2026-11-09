@@ -1,8 +1,16 @@
-Describe this approved world in at most 180 words for a separate narrator.
-Keep a few facts about everyday life, one useful daily task, and one connected
-danger/rule with its warning and consequence. Keep any conditions that matter.
-Use plain words. Do not invent facts, describe every visual detail, or try to cover
-every survival category. This is background material, not a finished narration.
+Give a separate narrator a very simple account of this approved world in at most
+80 words. Start with the familiar place the viewer lives in. Keep one ordinary
+comfort or activity and one clear danger or lasting drawback that matters most.
+A person listening casually should understand the whole idea the first time.
+
+Prefer a plain outcome such as losing sleep to the machinery that causes it.
+Leave out warning signals, readings, schedules, equipment parts, and the steps of
+keeping a system running. Include a simple protective action only if needed to
+understand the danger. Preserve relevant conditions when stating a claim; if
+explaining them needs several steps, omit that claim and choose another supported
+fact. Do not make the world safer or more dangerous than the approved facts.
+Use common words. Do not invent facts, add suspense, or cover every survival field.
+This is factual background for a narrator, not a finished script.
 
 [CONTEXT]
 [FEEDBACK]

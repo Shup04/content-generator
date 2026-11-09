@@ -28,7 +28,6 @@ from save_reel.opener import (
     timed_intro_captions,
     write_intro_captions,
 )
-from save_reel.opener_style import INTRO_SCRIPT
 from save_reel.pipeline import run_logging
 from save_reel.providers.media import MediaError
 from save_reel.providers.speech import SpeechProvider, SpeechRequestRejected
@@ -187,8 +186,8 @@ class NarrationPipeline:
             raise MediaError("A completed matching render run is required")
         cues = narration_cues(render, script)
         console = "ui_display_font" in render.artifacts
-        if console and script.intro != INTRO_SCRIPT:
-            raise MediaError(f"Console intro script must be: {INTRO_SCRIPT}")
+        if console and script.intro != render.settings.opener.intro_script:
+            raise MediaError(f"Console intro script must be: {render.settings.opener.intro_script}")
         video = checked_bytes(source, render.artifacts["reel"])
         font = checked_bytes(source, render.artifacts["font"])
         store = RunStore.create(runs_dir, run_id)
@@ -434,7 +433,9 @@ class NarrationPipeline:
                 # Let the voice set the opening length instead of compressing it to a fixed slot.
                 natural = cue.model_copy(update={"duration": audio_duration + 1})
                 plan = speech_plan(natural, metadata, audio_duration, run.settings.max_tempo)
-                plan["captions"] = timed_intro_captions(plan["words"])
+                plan["captions"] = timed_intro_captions(
+                    plan["words"], settings.opener.intro_captions,
+                )
                 settings.intro_seconds = (
                     math.ceil(plan["captions"][-1]["end"] * settings.fps) / settings.fps
                 )
@@ -529,7 +530,7 @@ class NarrationPipeline:
                     "-an",
                     "-frames:v",
                     str(
-                        round((settings.intro_seconds + settings.countdown_seconds) * settings.fps)
+                        round(settings.opener_seconds * settings.fps)
                     ),
                     "-r",
                     str(settings.fps),
@@ -555,10 +556,7 @@ class NarrationPipeline:
             )
             extra_inputs = ["-i", "opener.mp4", "-i", "countdown.wav"]
             base_audio = "3:a"
-            old_start = (
-                run.source_render.settings.intro_seconds
-                + run.source_render.settings.countdown_seconds
-            )
+            old_start = run.source_render.settings.opener_seconds
             video_graph = (
                 f"[0:v]trim=start={old_start},setpts=PTS-STARTPTS[reveals];"
                 "[2:v]setpts=PTS-STARTPTS[opening];"

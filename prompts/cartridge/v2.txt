@@ -14,6 +14,8 @@ Cartridge design:
 - molded plastic details
 - readable front label area
 - shell design should reflect the mood of the game world
+- use the specified shell hue as a clear, recognizable color identity; do not default to smoky gray, desaturated teal or muddy brown
+- keep the familiar cartridge silhouette and a large front-facing label; use only a slight three-quarter angle so the artwork remains readable
 
 Shell details:
 - shell material/color: [SHELL_MATERIAL_COLOR]
@@ -29,7 +31,11 @@ Important: the label should **not fully reveal the game world**. It should creat
 The label artwork should show:
 [HINT_SCENE_DESCRIPTION]
 
-The label should act like a mysterious teaser image, not a full scene explanation. Show only a suggestive glimpse, symbolic object, cropped environment fragment, or visually intriguing clue from the game world.
+The label must communicate one concrete visual question at phone size. Show a recognizable place or object with ONE clearly visible, unexplained detail from the supplied hint. Make the subject easy to identify and its situation strange: the viewer should understand what they see and wonder why it is there.
+
+Use a bold focal subject, a simple background and clear value separation. This asset will share a vertical phone screen with three other cartridges, so the mystery must read without zooming in or reading tiny text. Give the label artwork most of the front face beneath the title. Avoid a generic empty corridor, vague fog, an isolated decorative symbol, or a tiny clue lost in darkness.
+
+Follow the supplied hint and shell colors faithfully. Do not invent another anomaly, monster, survival rule, warning, or reward. Do not reveal the explanation or hidden survival bargain. Keep this a cropped glimpse rather than a full world panorama.
 
 The label should feel like art from a sixth-generation console game:
 - slightly stylized early-2000s CG rendering

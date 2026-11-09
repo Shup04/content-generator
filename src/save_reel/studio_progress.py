@@ -25,7 +25,7 @@ def plan(request, draft):
         stages += ["cartridges"]
     if action in ("stills", "videos", "full"):
         stages += ["stills"]
-    if action in ("videos", "full"):
+    if action in ("videos", "full") and draft.broll.visual_mode != "stills":
         stages += ["videos"]
     if action in ("render", "narrate", "full"):
         stages += ["render"]
@@ -53,10 +53,12 @@ def plan(request, draft):
                           and draft.story.prompt_version != "v1") if new_worlds else bool(
                               game.broll_beats
                           )
-                count = draft.broll.clips_per_save if paired else 1
+                count = draft.broll.shots_per_save
+                paired = paired or count > 1
                 beats = [request.beat_number] if request.beat_number else range(1, count + 1)
                 units += [f"save_{number:02}" + (f"_broll_{i:02}" if paired else "")
-                          for i in beats]
+                          for i in beats
+                          if stage != "videos" or draft.broll.media_kind(i) == "video"]
         result.append(
             {"id": stage, "label": LABELS[stage], "units": dict.fromkeys(units, "pending")}
         )

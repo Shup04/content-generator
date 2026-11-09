@@ -39,8 +39,12 @@ class BrollPipeline:
         video_prompt = BrollVideoPromptCompiler(
             video_template_version, prompts_dir=prompts_dir
         ).render({**values.model_dump(by_alias=True), **motion.model_dump(by_alias=True)})
-        if len(video_prompt.text) > 7000:
-            raise MediaError("Compiled video prompt exceeds MiniMax's 7000-character limit")
+        if (settings.media_kind(beat_number or 1) == "video"
+                and len(video_prompt.text) > settings.video_prompt_limit):
+            raise MediaError(
+                f"Compiled video prompt exceeds {settings.video_model}'s "
+                f"{settings.video_prompt_limit}-character limit; try video template v3"
+            )
         store = RunStore.create(runs_dir, run_id)
         run = BrollRun(
             run_id=store.run_dir.name,

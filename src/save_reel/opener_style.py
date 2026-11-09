@@ -15,9 +15,19 @@ INTRO_CAPTIONS = (
     "You must pick a game cartridge to be reincarnated into",
 )
 INTRO_SCRIPT = ". ".join(INTRO_CAPTIONS) + "."
+HOOK_CAPTIONS = ("You died", "Pick your next life")
+HOOK_SCRIPT = ". ".join(HOOK_CAPTIONS) + "."
 
 
 class OpenerStyle(Model):
+    # Old manifests retain their sequential intro; new Studio drafts opt in.
+    immediate_selection: bool = False
+    intro_wording: Literal["reincarnation", "short"] = "reincarnation"
+    # Saved immediate openers keep overlapping; new Studio drafts opt into waiting.
+    countdown_after_intro: bool = False
+    hook_center_y: Size = 430
+    hook_countdown_y: Size = 1530
+    hook_heading_size: Size = 46
     # None selects the bundled fonts. Custom paths are copied into each render run.
     display_font_file: str | None = None
     system_font_file: str | None = None
@@ -58,6 +68,23 @@ class OpenerStyle(Model):
     intro_wrap: Annotated[int, Field(ge=16, le=40)] = 32
     intro_alignment: Literal["C", "L", "R"] = "C"
     intro_line_spacing: Size = 16
+
+    @model_validator(mode="before")
+    @classmethod
+    def preserve_saved_wording(cls, value):
+        if isinstance(value, dict) and "intro_wording" not in value:
+            return {**value, "intro_wording": (
+                "short" if value.get("immediate_selection") else "reincarnation"
+            )}
+        return value
+
+    @property
+    def intro_captions(self) -> tuple[str, str]:
+        return HOOK_CAPTIONS if self.intro_wording == "short" else INTRO_CAPTIONS
+
+    @property
+    def intro_script(self) -> str:
+        return HOOK_SCRIPT if self.intro_wording == "short" else INTRO_SCRIPT
 
     @model_validator(mode="after")
     def ordered_ranges(self) -> "OpenerStyle":

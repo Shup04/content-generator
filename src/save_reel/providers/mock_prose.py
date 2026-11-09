@@ -24,6 +24,12 @@ def generate_prose_fixture(stage, context, response_type):
             "come back. You follow the rule you were told, then get on with your day. "
             "There is no need to rush through every task."
         ))
+        if context.get("word_range", [45, 70])[1] <= 50:
+            result = ProseParagraph(paragraph=(
+                f"{opening}, you get used to this place. You have a place to sleep "
+                "and a few small jobs to do. Between jobs, you take a break. "
+                "You know the way home now, so the days start to feel familiar."
+            ))
     elif stage == "narration_prose_candidates":
         # Deliberately generic fixture, never advertised as generated literary quality.
         result = ProseCandidates(candidates=tuple(

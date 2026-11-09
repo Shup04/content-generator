@@ -65,3 +65,9 @@ Do not make it photorealistic.
 Do not use ray tracing, PBR materials, cinematic lighting,
 realistic architectural visualization, modern high-detail
 reflections, or photographic depth of field.
+
+UNOCCUPIED SCENE
+Show environments and objects only. No people, faces, bodies, hands, crowds,
+human silhouettes, humanoid characters, or people in reflections or shadows.
+Do not add a character for scale or a first-person hand. Inhabitants mentioned in
+world context remain outside the frame. Keep the scene unoccupied throughout.

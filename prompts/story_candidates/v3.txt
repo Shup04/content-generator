@@ -13,6 +13,27 @@ mechanic, architecture, materials, time, weather, and palette. Explain palette_r
 The resource problem may refine the broad resource pressure into something specific.
 All candidates must offer different ways of living, not renamed variants.
 
+Each world's main idea must fit in one short sentence a tired listener understands.
+Build around one familiar setting and one simple strange condition or lasting cost.
+Novelty should come from the place and that central idea, not extra rules or
+elaborate equipment. Avoid concepts whose appeal or danger requires explaining a
+machine, a warning gauge, several exceptions, a work rota or a multi-step procedure.
+An impossible game-world rule is allowed when its effect is clear and consistent;
+you do not need to rationalize it with engineering. Keep schema fields concise and
+connected to the same simple idea instead of introducing a new mechanic per field.
+
+
+Design the visual_hook as one immediately recognizable place or object with one
+concrete unexplained detail, grounded in this world's anomaly or survival system.
+It must remain readable as small cartridge-label art. The image should make viewers
+wonder why that detail exists, without needing a caption to notice it. Generic fog,
+an empty corridor, a glowing symbol or a mood adjective alone is not a visual hook.
+Give each candidate a deliberate dominant hue, a contrasting accent and a clear
+lighting identity in palette/palette_reason. Compare with selected sibling worlds
+in the reel context: vary dominant hue, brightness, focal subject and composition,
+not merely the names of similar muted colors. Avoid four smoky teal/gray/brown images.
+Keep the palette credible for the place; do not assign color by survival tier.
+
 Fill causal_logic with five concrete answers: danger_origin, rule_protection,
 failure_consequence, cost_origin, reason_to_choose. Explanations must actually connect
 facts, not merely assert that they are connected. Include a compact signature of the

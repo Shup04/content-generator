@@ -7,12 +7,12 @@ from array import array
 
 import pytest
 from test_narration import alignment
-from test_rendering import local_assets  # noqa: F401
+from test_rendering import frame, local_assets, pixel  # noqa: F401
 
 from save_reel.models import ConceptRequest
 from save_reel.narration import NarrationPipeline
 from save_reel.narration_models import NarrationScript, SpeechMetadata, SpeechSettings
-from save_reel.opener_style import INTRO_SCRIPT
+from save_reel.opener_style import OpenerStyle
 from save_reel.polish_models import ReelPolish
 from save_reel.providers.mock_story import MockStoryProvider
 from save_reel.providers.speech import GeneratedSpeech
@@ -92,12 +92,19 @@ def test_polish_is_explicit_for_old_settings_and_default_for_new_studio_drafts()
     }}).render.polish.enabled
 
 
-@pytest.mark.parametrize("placement", ["before", "after"])
+@pytest.mark.parametrize("placement,immediate,wording,after_intro", [
+    ("before", False, "reincarnation", False), ("after", False, "reincarnation", False),
+    ("after", True, "short", False), ("after", True, "reincarnation", False),
+    ("after", True, "reincarnation", True),
+])
 def test_real_polished_reel_speech_timing_still_fallback_and_resume(
-    local_assets, tmp_path, placement,
+    local_assets, tmp_path, placement, immediate, wording, after_intro,
 ):
-    _, sources, collection, _ = local_assets
-    settings = RenderSettings(width=216, height=384, intro_seconds=1, countdown_seconds=1,
+    _, sources, collection, colours = local_assets
+    countdown = 3 if after_intro else 1
+    settings = RenderSettings(width=216, height=384, intro_seconds=1, countdown_seconds=countdown,
+                              opener=OpenerStyle(immediate_selection=immediate,
+                                  intro_wording=wording, countdown_after_intro=after_intro),
                               clip_seconds=3, polish=ReelPolish(
                                   enabled=True, still_position=placement,
                               ))
@@ -109,18 +116,20 @@ def test_real_polished_reel_speech_timing_still_fallback_and_resume(
     subprocess.run(["ffmpeg", "-v", "error", "-f", "lavfi", "-i",
                     "sine=frequency=440:duration=3.2", "-c:a", "libmp3lame", str(tone)],
                    check=True, capture_output=True)
+    intro_script = settings.opener.intro_script
 
     class Speech:
         calls = []
 
         def generate(self, text, settings):
             self.calls.append(text)
-            duration = 1.2 if text == INTRO_SCRIPT else 0.6 if text.startswith("GAME") else 3
+            duration = (1.2 if text == intro_script
+                        else 0.6 if text.startswith("GAME") else 3)
             return GeneratedSpeech(tone.read_bytes(), SpeechMetadata(
                 alignment=alignment(text, duration)
             ))
 
-    script = NarrationScript(intro=INTRO_SCRIPT, games=[
+    script = NarrationScript(intro=settings.opener.intro_script, games=[
         dict(title=g.title, text="You gather supplies and return before dark.",
              survivability_tier=tier)
         for g, tier in zip(collection.games, TIERS, strict=True)
@@ -134,6 +143,16 @@ def test_real_polished_reel_speech_timing_still_fallback_and_resume(
     assert len(provider.calls) == 9
     assert is_finished_reel(store.run_dir)
     plans = json.loads((store.run_dir / "speech_plan.json").read_text())
+    if immediate:
+        countdown_start = run.effective_intro_seconds if after_intro else 0
+        assert run.timeline[1].start == countdown_start
+        assert run.timeline[1].duration == countdown
+        assert run.timeline[2].start == max(
+            run.effective_intro_seconds, countdown_start + countdown,
+        )
+        opening = frame(result, 0)
+        for x, y, rgb in zip((55, 161, 55, 161), (160, 160, 245, 245), colours, strict=True):
+            assert pixel(opening, x, y) == pytest.approx(rgb, abs=8)
     for number in range(1, 5):
         title = next(s for s in run.timeline if s.kind == "save_intro" and s.save_number == number)
         world = next(s for s in run.timeline if s.kind == "broll" and s.save_number == number)

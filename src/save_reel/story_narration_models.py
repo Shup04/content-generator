@@ -25,7 +25,7 @@ class TraveloguePolicy(Model):
 
     @classmethod
     def sol(cls):
-        return cls(prompt_version="v3", target_min_words=45, target_max_words=70)
+        return cls(prompt_version="v3", target_min_words=35, target_max_words=50)
 
     @model_validator(mode="after")
     def valid_range(self):

@@ -9,7 +9,10 @@ protective action and consequence must arise from the environment and its system
 Explain observable causes and effects. Do not attach arbitrary penalties or curses.
 Explain how the player can actually obtain supplies, find shelter and survive a day.
 Use null for genuinely unspecified food/water or optional facts; warning_signs may
-be empty if there is no detectable warning. Do not invent filler to populate fields.
+be empty if there is no detectable warning. Do not invent filler to populate fields. Keep the same single central idea through
+the spec. Do not elaborate a simple premise into a system of gauges, warning codes,
+rotas, mechanical parts or exceptions. Plain game-world cause and effect is enough;
+the origin of an impossible rule may remain unexplained.
 
 Keep approved concept facts EXACTLY in these spec fields:
 selected.resource_situation -> resource_system
@@ -26,8 +29,20 @@ If previous_review exists, correct its issues without replacing the selected wor
 Also supply the existing structured visual variables; never complete image prompts.
 These are separate from the world spec and are not supplied to the narrator.
 Cartridge: shell_material_color, shape_language, motifs, object_mood,
-hint_scene_description. Tease one object, fragment or clue, never the whole world
-or its hidden survival bargain. Preserve the selected world's visual identity.
+hint_scene_description. Use selected.visual_hook as the starting composition for one readable
+visual mystery: a familiar place or object with one clearly visible unexplained
+detail. Describe the focal subject, the exact strange relationship or placement,
+the crop, dominant color, contrasting accent and lighting. Use only facts already
+supported by the selected world. Do not invent new mechanics or decorative lore.
+If the visual hook is a spatial contradiction, preserve that contradiction when
+cropping; do not replace it with a decorative line, an isolated symbol or an
+ordinary map fragment. Favor the strongest visible question already in the hook
+over a subtler anomaly that needs the story explained before it looks unusual.
+The subject must be recognizable on a small cartridge label; the reason it exists
+should remain mysterious until the world reveal. Avoid vague fog, generic corridors,
+tiny symbols and clues that only work as text. Tease a cropped glimpse, never a full
+panorama or the hidden survival bargain. Preserve the selected palette and use a
+distinct dominant hue in shell_material_color rather than default smoky plastic.
 Environment: environment_description, time_of_day, key_visual_elements, palette,
 mood, visual_anomaly, environmental_motion, shot_composition, key_surfaces.
 Copy selected.palette, selected.anomaly and selected.time_of_day EXACTLY into
@@ -40,3 +55,8 @@ SELECTED CONCEPT AND SIMULATION FEEDBACK
 
 SCHEMA VALIDATION FEEDBACK
 [FEEDBACK]
+
+Visual direction: all environment descriptions and visual beats show unoccupied
+spaces and objects. Keep people, faces, hands, crowds, human silhouettes and
+humanoid figures outside the frame, including reflections and shadows. This is a
+framing choice; preserve any inhabitants in the approved world's factual story.

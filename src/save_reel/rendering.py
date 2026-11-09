@@ -16,7 +16,6 @@ from save_reel.cartridge import CartridgePipeline
 from save_reel.ffmpeg_text import draw_text
 from save_reel.models import Artifact, StageState, StageStatus, utc_now
 from save_reel.opener import opener_filter, opener_inputs, prepare_opener
-from save_reel.opener_style import INTRO_SCRIPT
 from save_reel.pipeline import run_logging
 from save_reel.providers.media import MediaError
 from save_reel.render_models import RenderCollection, RenderRun, RenderSettings, build_timeline
@@ -58,7 +57,7 @@ def write_countdown_audio(path: Path, settings: RenderSettings, duration: float)
     sample_rate = 48000
     samples = array("h", [0]) * (round(duration * sample_rate) * 2)
     for index in range(settings.countdown_seconds):
-        start = round((settings.intro_seconds + index) * sample_rate)
+        start = round((settings.countdown_start + index) * sample_rate)
         frequency = 880 if index == settings.countdown_seconds - 1 else 660
         for offset in range(round(0.16 * sample_rate)):
             t = offset / sample_rate
@@ -197,6 +196,15 @@ class ReelRenderer:
             for clip_number, broll_id in enumerate(game.broll_run_ids, 1):
                 broll_store = RunStore(source_runs_dir / broll_id)
                 broll = BrollPipeline.load(broll_store)
+                if game.clip_kind(clip_number) == "still":
+                    if (broll.values.game_title != game.title or "image" not in broll.artifacts
+                            or broll.stages["image_generation"].status != StageStatus.COMPLETED):
+                        raise MediaError(
+                            f"{game.title}: a completed matching B-roll still is required"
+                        )
+                    sources.append((self._source(broll_store, broll.artifacts["image"]),
+                                    f"inputs/save_{number:02}/broll_{clip_number:02}_still.png"))
+                    continue
                 if broll.status != StageStatus.COMPLETED or broll.values.game_title != game.title:
                     raise MediaError(f"{game.title}: a completed matching B-roll run is required")
                 path = self._source(broll_store, broll.artifacts["video"])
@@ -222,7 +230,7 @@ class ReelRenderer:
             collection=collection,
             settings=settings,
             timeline=build_timeline(collection, settings),
-            narration_text=INTRO_SCRIPT,
+            narration_text=settings.opener.intro_script,
             tool_versions=versions,
         )
         self._save(store, run)
@@ -240,7 +248,8 @@ class ReelRenderer:
                     )
                 run.artifacts["font"] = store.write_bytes("font.ttf", font.read_bytes(), "font/ttf")
                 run.artifacts.update(prepare_opener(store, settings))
-                texts = {"countdown_caption": "MAKE YOUR CHOICE"}
+                texts = {"countdown_caption": "CHOOSE YOUR NEXT LIFE"
+                         if settings.opener.immediate_selection else "MAKE YOUR CHOICE"}
                 for number, game in enumerate(collection.games, 1):
                     texts[f"save_{number:02}"] = f"SAVE {number:02}"
                     texts[f"title_{number:02}"] = game.title
@@ -300,7 +309,7 @@ class ReelRenderer:
                     self._save(store, run)
                     return relative
 
-                intro_duration = settings.intro_seconds + settings.countdown_seconds
+                intro_duration = settings.opener_seconds
                 intro_inputs = opener_inputs(settings)
                 segments = [
                     encode_stage("intro", intro_inputs, intro_filter(settings), intro_duration)
@@ -319,6 +328,7 @@ class ReelRenderer:
                             args, graph, footage = world_scene(
                                 self, store, settings, number, segment.title, segment.duration,
                                 len(collection.games[number - 1].broll_run_ids),
+                                collection.games[number - 1].broll_kinds,
                             )
                             name = f"save_{number:02}_world"
                             for item in footage:
@@ -333,15 +343,20 @@ class ReelRenderer:
                         segments.append(encode_stage(name, args, graph, segment.duration))
                         continue
                     name = f"save_{number:02}_clip_{clip_number:02}"
+                    game = collection.games[number - 1]
+                    if game.clip_kind(clip_number) == "still":
+                        inputs = ["-loop", "1", "-framerate", str(settings.fps), "-i",
+                                  f"inputs/save_{number:02}/broll_{clip_number:02}_still.png"]
+                    else:
+                        inputs = [
+                            *(["-stream_loop", "-1"] if settings.loop_short_clips
+                              and len(game.broll_run_ids) == 1 else []),
+                            "-i", f"inputs/save_{number:02}/broll_{clip_number:02}.mp4",
+                        ]
                     segments.append(
                         encode_stage(
                             name,
-                            [
-                                *(["-stream_loop", "-1"] if settings.loop_short_clips
-                                  and len(collection.games[number - 1].broll_run_ids) == 1 else []),
-                                "-i",
-                                f"inputs/save_{number:02}/broll_{clip_number:02}.mp4",
-                            ],
+                            inputs,
                             clip_filter(settings, number, segment.title),
                             segment.duration,
                         )

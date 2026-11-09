@@ -1,48 +1,17 @@
 # save-reel
 
-A local production tool for short-form **Choose Your Save** videos. The viewer is
-asked to pick a game cartridge to be reincarnated into, then discovers what living
-inside each of the four fictional worlds would involve. The output is a vertical
-MP4 with cartridge choices, world footage, narration and optional timed captions.
+A generator for short-form **Choose Your Save** videos. The story workflow builds
+four practical survival worlds, prepares structured visual variables and deterministic
+prompts, and saves a JSON manifest. The original `create` workflow still prepares four
+mock saves and their label/B-roll prompts. Both mock workflows run without API keys.
 
-The project connects two kinds of work: inventing distinct worlds with concrete
-rules, resources and permanent costs, and making the cartridge, scenery and spoken
-story describe the same world. World design and review happen before narration;
-structured visual variables then feed versioned image/video prompts. New tiered
-reels contain one `best`, `good`, `risky` and `bad` outcome, so an inviting image does
-not automatically mean an easy place to survive.
-
-**Save Reel Studio** is the current end-to-end interface. It lets you edit drafts,
-prompts and model settings, generate or import stories, reuse completed assets,
-resume interrupted work and download finished reels. New stories have two B-roll
-beats per save: an establishing shot and a distinct detail shot. With the default
-settings, a full new reel uses four transparent cartridge images and eight animated world clips.
-Polished assembly times the title reveals and footage to the recorded speech.
-Older drafts retain their saved single-clip settings.
-
-The repository also retains the original prompt-only `create` command and separate
-story, media, render and narration commands. They remain useful for inspecting or
-repeating one stage. Separate flat-label image generation, Blender integration,
-automatic scheduling and social publishing are not implemented.
-
-## Start here
-
-| What you want to do | Read |
-| --- | --- |
-| Edit and produce a complete reel in the browser | [Install](#install), then [Local web interface](#local-web-interface) |
-| Understand the current footage and voice layout | [Polished pacing](#polished-pacing-and-survival-tiers) and [Two B-roll beats per save](#two-b-roll-beats-per-save) |
-| Develop or review worlds without buying media | [Generate survival stories without media](#generate-survival-stories-without-media) |
-| Reuse assets or recover an interrupted job | [Saved state and recovery](#saved-state-and-recovery) |
-| Assemble existing media or add voice separately | [Render locally](#render-the-reel-locally) and [Narration and subtitles](#add-narration-and-subtitles) |
-| Inspect the original offline prompt example | [Create a reel](#create-a-reel) |
-| Read the implementation or run existing checks | [Architecture](#architecture) and [Tests](#tests) |
-
-Opening Studio and editing drafts are local operations. Mock story/prompt workflows
-need no API keys. Real story generation uses OpenAI; image generation uses the
-configured OpenAI image model, video uses MiniMax and speech uses ElevenLabs.
-Media and voice generation can incur charges even when the stories came from a mock
-fixture. FFmpeg/ffprobe handle local assembly; provider extras and credentials are
-described in the relevant sections below.
+Optional real workflows generate full cartridge renders with GPT Image 2.5,
+or generate B-roll stills and animate them with MiniMax H3. The local `render`
+command combines saved cartridges and B-roll into a vertical MP4 with FFmpeg.
+The `narrate` command adds ElevenLabs speech and timed subtitles from a saved script.
+**Save Reel Studio** connects these stages through a local browser interface, including
+draft editing and full reel generation. Separate flat label image generation, Blender,
+automatic scheduling, and social publishing are not implemented.
 
 ## How the prompts fit your video
 
@@ -51,8 +20,8 @@ mood. Those values fill the label and B-roll templates; cartridge renders add
 structured shell design values:
 
 1. **Cartridge label:** `prompts/label/v1.txt` describes flat 3:2 artwork with the
-   game title. This is the original prompt-only route; separate label generation
-   and applying the result to a Blender scene remain unimplemented.
+   game title. Later, an image provider will generate the artwork, which can be
+   applied as the cartridge label texture in your Blender scene.
 2. **B-roll still:** `prompts/broll_still/v2.txt` describes a 9:16 game screenshot
    from that same world. It also specifies shot composition and key surfaces.
    The `generate-broll` command generates this still and sends it to MiniMax H3
@@ -61,12 +30,12 @@ structured shell design values:
    with a mysterious teaser label on transparency. `generate-cartridge` produces
    this image from explicit shell material, shape, molded details, mood, and a hint.
 
-The current Studio workflow compiles the still/video templates separately for
-each of the two authored beats while preserving the shared world identity. The
-`render` command animates the cartridge cutouts in FFmpeg and then shows the B-roll;
-legacy collections can still use one clip per save. The original `create` command
-prepares eight text prompts—one label and one still prompt per save—and does not
-generate images or clips. The original supplied wording remains in the `v1` templates.
+The current video uses **four transparent cartridge images and four B-roll
+clips**, each animated from its own still. The `render` command animates the
+cartridge cutouts in FFmpeg and then shows the B-roll. A second clip per story
+can be added to the collection later. The `create` command prepares the eight
+text prompts; it does not generate images or clips. The original supplied
+wording remains in the `v1` templates.
 The revised B-roll templates use `v2`; all versions use `[VARIABLE]` placeholders.
 
 ## Install
@@ -105,9 +74,47 @@ save-reel studio stop
 save-reel studio serve --port 8765 --project-dir /path/to/content-generator
 ```
 
-Studio does not install itself as a login service or start generation automatically.
-Run `studio start` again after a reboot. Scheduling can be added to the saved-job
-runner later. `studio stop` refuses to stop while a generation job is running.
+For manual startup, run `studio start` again after a reboot. `studio stop` refuses
+to stop while a generation job is running. Starting Studio does not start generation
+automatically.
+
+### Start automatically on Linux
+
+The included systemd user service starts Studio at boot and restarts it after a
+failure. It uses the existing `.venv` and project `.env`, and keeps the interface at
+**http://localhost:8765**. Install the project and provider extras above first.
+The unit assumes the checkout is at `~/repositories/content-generator`; if it is
+elsewhere, adjust the paths in `systemd/save-reel-studio.service` before installing.
+
+From the repository root, with no generation job running:
+
+```sh
+.venv/bin/save-reel studio stop
+mkdir -p ~/.config/systemd/user
+cp systemd/save-reel-studio.service ~/.config/systemd/user/
+systemctl --user daemon-reload
+loginctl enable-linger "$USER"
+systemctl --user enable --now save-reel-studio.service
+```
+
+Lingering starts your user services before login and keeps them running after logout.
+If `loginctl` requires administrator authorization, run `sudo loginctl enable-linger
+"$USER"`. Without lingering, the enabled service starts when you log in.
+
+Manage the installed daemon with:
+
+```sh
+systemctl --user status save-reel-studio.service
+systemctl --user restart save-reel-studio.service
+systemctl --user stop save-reel-studio.service
+journalctl --user -u save-reel-studio.service -f
+# Stop it and disable automatic startup:
+systemctl --user disable --now save-reel-studio.service
+```
+
+Wait for generation to finish before stopping or restarting the systemd service:
+these commands also terminate its workers. Use `systemctl --user start
+save-reel-studio.service` to start it again after stopping it.
 
 ### Editing and generation
 
@@ -125,8 +132,7 @@ runner later. `studio stop` refuses to stop while a generation job is running.
 4. **Activity** shows a progress bar, per-stage counts and individual save states.
    Progress measures completed work items, including cached results, not estimated
    time remaining. Technical logs are available in a collapsed section. A finished-reel
-   job is complete only after the narrated MP4 and every planned voice cue exist:
-   nine cues in polished mode, or five in the legacy layout.
+   job is complete only after the narrated MP4 and all five voice segments exist.
 5. **Video library** defaults to **Finished reels only**. Partial narration jobs and
    base renders are excluded. Search by reel name, title or run ID, and filter by type,
    status or earliest date. Watch and download the finished MP4 directly.
@@ -149,6 +155,21 @@ Manual script edits and previously generated real scripts are preserved unless y
 explicitly choose this rewrite action.
 
 ### Polished pacing and survival tiers
+
+New Studio drafts show all four cartridges from the first frame while explaining:
+**"You have died. You must pick a game cartridge to be reincarnated into."** The
+three-second countdown starts after the final spoken intro word. The numbers and
+beeps wait; the cartridges remain visible throughout. The first world follows 3–2–1.
+**Voice & assembly → Intro wording** switches between this explanation and the short
+hook independently of **Show cartridges from the first frame**. **Start countdown
+after the intro finishes** controls the countdown separately and is on for new drafts.
+Saved drafts and
+render manifests retain their previous wording and layout.
+
+New story prompts ask for distinct dominant colors and one readable, world-grounded
+visual mystery per cartridge. The cartridge image prompt prioritizes a large label,
+a recognizable focal subject and one unexplained detail that survives phone sizing.
+Saved job prompt snapshots and already generated images are preserved.
 
 New Studio drafts enable **Speech-timed cartridge reveals and varied footage** in
 **Models & settings → Voice & assembly**. Enable it there for an older draft, then
@@ -180,32 +201,55 @@ matching existing speech, including the opener, is reused. Later style/pacing-on
 changes can reuse all nine recordings. The library requires every planned cue to
 be complete before labeling a reel finished.
 
-### Two B-roll beats per save
+### Video and still shots per save
 
-New stories include `environment.broll_beats`: exactly two distinct structured shots,
-first an establishing view, then a closer view of another area or a specific survival
-or daily-life detail. `prompts/story_broll_beats/v1.txt` adds these visual requirements
-to world simulation without changing narration or creative-history selection. Each
-beat has a description, composition and camera motion. Shared palette, time, mood,
-materials and the existing still/video templates keep the same game identity.
-Story exports include per-beat values and compiled prompts under `saves/save_XX/`.
+New stories use `prompts/story_broll_beats/v2.txt` to plan four distinct views:
+an establishing shot followed by three different areas or subjects from the same
+approved world. Each has its own description, composition and camera motion, with
+shared palette, time and materials. Visual prompts keep people, humanoid figures,
+hands, silhouettes and human reflections outside the frame. Narration can still
+mention a world's inhabitants.
 
-Studio generates eight stills, then independently animates all eight through the
-existing checkpointed B-roll provider. Each beat has its own run, task ID and cache.
-The two run folders store `broll_01_still.png` / `broll_01.mp4` and
-`broll_02_still.png` / `broll_02.mp4`. Render inputs also keep these numbered names.
-No third clip is generated automatically.
+New Studio drafts use one video plus three still images per save. The video's
+first-frame image is generated separately, so a four-world reel needs up to 16
+B-roll images and four video generations. Each shot has its own run and cache,
+with numbered files such as `broll_04_still.png`. Existing worlds with fewer views
+get additional descriptions from a checkpointed text-planning step before media
+generation. Existing descriptions and media references are retained. Rendering
+alone requires those additional shots to have been generated first.
 
-Configuration uses the existing settings paths rather than a second provider config:
-
-| Setting | Default | Purpose |
+| Setting | Studio default | Purpose |
 | --- | --- | --- |
-| `broll.video_model` | `MiniMax-H3-Max` | Configurable video model |
-| `broll.resolution` | `480P` | Native video resolution |
+| `broll.video_model` | `MiniMax-H3` | Original H3 video model |
+| `broll.resolution` | `768P` | Native video resolution |
 | `broll.duration` | `5` | Generated seconds per clip |
-| `broll.clips_per_save` | `2` | Use one or both authored beats |
+| `broll.clips_per_save` | `1` | Video-only mode: one or two clips |
+| `broll.stills_per_save` | `3` | Mixed/stills mode: one, two or three stills |
+| `broll.visual_mode` | `mixed` | One video plus selected stills |
 | `render.polish.max_slowdown` | `1.5` | Maximum duration multiplier |
 | `render.polish.allow_still_fallback` | `true` | Fill excess speech time with a world still |
+
+Choose **B-roll visuals** in the workspace or **Settings → Images & clips**:
+
+- **Video clips** exposes a separate one/two video count.
+- **1 video + still images** exposes a one/two/three still count in addition to the
+  one video. The hint shows the total shots per save.
+- **Still images only** uses one/two/three images and skips MiniMax.
+
+The narration writer, selector and final editor prefer one small connected
+account of life there that a tired viewer can follow on first hearing: a familiar
+place, one comfort or activity, and one plain catch. The default is 35–50 words in
+3–4 short sentences at roughly grade 3–4 level. Concepts, reviews and world simulation
+also avoid elaborate procedures and machinery. Existing scripts
+change only when edited or explicitly rewritten.
+
+Matching saved images and clips are reused when switching modes. In speech-timed
+mode, the selected views share the narration window; the still covers any time beyond the
+video's maximum slowdown. Intentional stills work even when **Use world still when
+footage runs out** is off, and keep their authored order. **Still zoom amount**
+controls their gentle zoom; set it to `0` for a completely static image. Legacy
+assembly holds each still for the configured clip duration. Existing drafts default
+to video clips, and completed reels keep their saved footage choices.
 
 After the existing cartridge/title card, FFmpeg plays A then B once each with a clean
 cut. A 9-second section uses about 4.5 seconds of each; a 12-second section uses 1.2×
@@ -213,19 +257,19 @@ slowdown. Longer narration can use up to 1.5× and then a still with gentle zoom
 The narration and captions remain continuous across the cut. Disabling still fallback
 raises a clear error when the footage cannot cover speech within the slowdown cap;
 it never silently loops or purchases another clip. Narration word targets are unchanged,
-so longer existing scripts will still need the still fallback.
+so video-only reels with longer scripts may still need the still fallback.
 
 Use **Advanced: run or regenerate a single stage → Saves to update → B-roll to update**
-to choose B-roll 1, B-roll 2, or both. **B-roll clips** regenerates video while reusing
+to choose any selected shot or all selected shots. **B-roll clips** regenerates video while reusing
 matching stills; **B-roll stills** with **Make a new version** also replaces that beat's
-image. The other beat and the other saves retain their references. **Finish existing
+image. Other shots and saves retain their references. **Finish existing
 media + voice** and base rendering use saved media and make no image/video API calls.
 
 Older drafts and manifests without beat arrays retain their single clip and original
 settings. They are not upgraded into a second paid clip automatically. Existing presets
 also keep saved model, resolution and slowdown choices; the defaults above apply to new
-settings. New story generation uses the two-beat template, whose version is recorded in
-the story manifest. Both beats are editable and previewable in the existing workspace.
+settings. New story generation uses the four-view template, whose version is recorded
+in the story manifest. All authored views are editable and previewable in the workspace.
 
 Each output stores `speech_plan.json`, its actual timeline, and `footage_plan.json`
 (source, slowdown, frame budget, still fallback), plus FFmpeg commands and filters.
@@ -269,9 +313,19 @@ Completed runs and queued job snapshots never change when a preset or draft chan
 Presets are in `runs/.studio/presets/`; draft setting revisions are in
 `runs/.studio/revisions/<draft_id>/`.
 
-The video selector includes `MiniMax-H3` (4–15s, 768P/2K) and `MiniMax-H3-Max`
-(5–15s, 480P/768P). The UI and typed settings reject unsupported combinations, following
-[MiniMax's V2 API documentation](https://platform.minimax.io/docs/api-reference/video-generation-v2-create).
+The video selector includes `MiniMax-H3` (4–15s, 768P/2K), `MiniMax-H3-Max`
+(5–15s, 480P/768P), and `MiniMax-Hailuo-02` (6/10s at 512P/768P, or 6s at 1080P).
+Changing the model in Studio selects its inexpensive starting settings: H3 Max
+uses 480P/5s and Hailuo-02 uses 512P/6s. Existing saved runs retain their settings.
+Hailuo uses the V1 image-to-video API and the same resumable task checkpoints.
+Its compact `broll_video/v3` template fits the 2,000-character prompt limit;
+Studio validates the compiled prompt before generation.
+For CLI Hailuo runs, select `--video-model MiniMax-Hailuo-02 --resolution 512P
+--duration 6 --video-template-version v3`. Duplicate a completed Studio draft to
+compare models while reusing its stills, cartridges, scripts and matching speech.
+The UI and typed settings reject unsupported combinations, following
+[MiniMax's V2 API documentation](https://platform.minimax.io/docs/api-reference/video-generation-v2-create)
+and [Hailuo's image-to-video API](https://platform.minimax.io/docs/api-reference/video-generation-i2v).
 The CLI also accepts `generate-broll --video-model MiniMax-H3-Max`.
 
 Rendering preserves the existing opener, layouts and subtitles. Polished renders follow
@@ -297,7 +351,9 @@ the remote task ID. Ambiguous paid requests retain the existing duplicate-reques
 check the log/provider before retrying a new job. A forcibly terminated stage may retain
 its pipeline lock; the log names it rather than silently removing it.
 
-The server log is `runs/.studio/server.log`. Keys are never returned through the UI;
+The server log is `runs/.studio/server.log` for manual background startup, or
+`journalctl --user -u save-reel-studio.service` for the systemd service.
+Keys are never returned through the UI;
 the settings page shows only whether each local key is configured. The local API checks
 Host/Origin and a session token for mutations, and serves only allowlisted run media.
 
@@ -338,10 +394,10 @@ save-reel review-concepts runs/survival-v3-001
 Use `--model` or `SAVE_REEL_STORY_MODEL` to change the concept/world model. Precedence is CLI,
 environment/`.env`, settings file, default. `--env-file` selects the credentials file.
 Model access failures are reported; there is no silent substitution. A normal successful
-episode uses 37 text calls: four candidate sets, four critiques, one reel critique,
-then seven calls per save (simulation, simulation review, concise description, three
-separate narration drafts, narration selection). Validation and quality replacement can add calls within
-the configured limits. No paid calls are required by the automated tests.
+episode uses 41 text calls: four candidate sets, four critiques, one reel critique,
+then eight calls per save (simulation, simulation review, concise description, three
+separate narration drafts, narration selection, final script edit). Validation and quality
+replacement can add calls within the configured limits. No paid calls are required by the tests.
 
 For one offline plumbing check:
 
@@ -388,11 +444,11 @@ mock default and prominently labels fixture output.
 7. A High-effort simulation review checks the setting/threat/rule/consequence chain and
    consistency of supplies, shelter and routine. Narration cannot start until it passes.
 8. **NARRATION (GPT-6.1 Sol, Medium):** first condense the approved world into at most
-   180 words of background. The final writer receives only that description, the title,
+   80 words of background. The final writer receives only that description, the title,
    word range and the user's example script. The supplied prompt asks for one
-   45–70 word narration in short sentences and common words, around grade 5–6 level:
-   a normal day, one practical task and one strange or dangerous rule. It excludes image
-   descriptions, checklists, poetic lines and forced twists. Three independent calls
+   35–50 word narration in 3–4 short sentences and common words, around grade 3–4 level:
+   an immediately clear place, life there, and one simple catch. It excludes technical
+   explanations, chains of instructions, poetic lines and forced twists. Three independent calls
    produce alternatives; each successful draft is cached before the next call. The only
    writer output field is the paragraph. No survival schema, history, fact-count quotas
    or citation metadata enters the writer. The example guides voice, not world mechanics.
@@ -494,6 +550,28 @@ under `story_requests/`. Each save also exports `world_spec.json`, `world_review
 `narration_candidates.json`, `narration_selection.json` and `narration_travelogue.json`.
 The readable review shows all paragraphs, scores, rejection reasons and the selection.
 Legacy briefings retain `narration_grounding.json` and `narration_review.json`.
+
+New v3 generations finish with one cached **script editor** pass per save, after narration
+selection and before the final text reaches TTS. It receives the selected concept,
+selected narration and an explicit word limit, and uses the configured narration
+model/reasoning (Sol Medium by default). `prompts/story_narration_editor/v1.txt` asks
+for literal clarity, everyday words, short sentences and explicit cause/effect without
+new lore or changed mechanics.
+Unclear or unnecessary lines may be deleted; the editor is not forced to fill the writer's
+minimum word count. Format/length are validated locally; faithful editing and readability
+remain model judgments rather than a deterministic proof.
+An overlong edit receives its measured word count, the exact maximum and the rejected
+draft for shortening on the next attempt. Rejected parsed edits are saved with the
+validation error for diagnosis; they are never reused as approved narration.
+
+`script_edit.json` records the original and cleaned text, while `story_requests/` records
+the editor prompt, model and response. The cleaned text becomes the final narration used
+by Studio, TTS and captions. The original narration selection, worlds, history, cartridge
+variables and b-roll beats remain intact. Resume and rendering reuse the saved edit.
+Studio's active prompts include **Final script editor**; its version is configurable with
+`script_editor_prompt_version` (`v1` by default, `null` to disable). Existing cached scripts
+stay unchanged; **Rewrite narration only** applies the writer and editor to existing worlds
+without regenerating visuals. Older CLI runs retain their saved policy on resume.
 
 Per-save `cartridge_values.json`, `broll_values.json`, `motion_values.json` and compiled
 prompts retain the existing downstream contracts. The normal Reel manifest references
@@ -679,7 +757,7 @@ LINE's safe journey, VELVET ORCHARD's stolen memories, and SIGNAL 03's unresolve
 identity. Edit that JSON to change the narration. Its four titles and order must
 match the source render. No LLM or orchestrator writes or changes the script.
 
-For console openers, the intro must use the exact script in the supplied example:
+For classic console openers, the intro must use the exact script in the supplied example:
 "You have died. You must pick a game cartridge to be reincarnated into."
 Two complete captions appear only during their corresponding spoken sentences:
 "You have died" and "You must pick a game cartridge to be reincarnated into".
@@ -689,6 +767,15 @@ and starts the five-second countdown. The intro plays at its generated pace;
 the final duration follows its speech timestamps instead of a guessed pause.
 The new timings are recorded in `narration.json` as `effective_intro_seconds`
 and `timeline`. The source render's timeline remains intact.
+
+With `opener.immediate_selection: true`, the cartridges appear from frame zero.
+Use `opener.intro_wording: "reincarnation"` for the full explanation or `"short"`
+for **"You died. Pick your next life."**. Set `intro_seconds: 3` and `countdown_seconds: 3` for the base preview.
+The grid starts at zero. With `opener.countdown_after_intro: true`, numbers and
+beeps start after the spoken intro, and the opening lasts intro duration plus the
+countdown. New Studio drafts use this setting with a three-second countdown.
+With the flag off, the countdown starts with the grid; older saved immediate-openers
+retain that overlapping timing. Both paths follow the actual voice duration.
 
 To reuse existing recordings during a UI revision, add:
 
@@ -839,9 +926,9 @@ save-reel generate-broll \
 ```
 
 This command makes **paid API requests** for one game: first a
-`gpt-image-2.5-sunburst` image, then a `MiniMax-H3-Max` video. The default still is an
+`gpt-image-2.5-sunburst` image, then a `MiniMax-H3` video. The default still is an
 opaque 864×1536 PNG (exactly 9:16) at medium quality. The default video is five
-seconds at 480P. The video takes its aspect ratio from the first-frame image. You can
+seconds at 768P. The video takes its aspect ratio from the first-frame image. You can
 select `--image-model gpt-image-2.5-flare`, `--image-quality high`, `--duration 6`,
 or `--video-model MiniMax-H3 --resolution 768P` for an A/B comparison. H3 Max
 supports 5–15 seconds at 480P/768P; H3 supports 4–15 seconds at 768P/2K.
@@ -917,11 +1004,6 @@ The integrations follow the official [OpenAI image-generation API](https://devel
 and [MiniMax task-query API](https://platform.minimax.io/docs/api-reference/video-generation-v2-query).
 
 ## Create a reel
-
-This is the original **offline prompt-only** workflow. It writes a manifest and
-text prompts from fixed mock worlds. For a finished video, start with
-[Studio](#local-web-interface); for new world writing without media, use
-[the story workflow](#generate-survival-stories-without-media).
 
 ```sh
 save-reel create --theme "forgotten worlds" --run-id demo
@@ -1007,31 +1089,6 @@ additional game concepts or cartridge properties are invented for the preview.
 
 ## Architecture
 
-The current Studio path connects the existing stage APIs:
-
-```text
-Editable four-world draft + versioned prompts/settings
-  -> snapshot and background production job
-  -> world selection/review -> world simulation/review -> narration writing
-  -> four cartridge images + two still/video beats per save
-  -> FFmpeg assembly + speech/timed captions -> finished MP4
-```
-
-[`studio_server.py`](src/save_reel/studio_server.py) serves the browser UI on
-loopback using Python's standard library. [`studio_jobs.py`](src/save_reel/studio_jobs.py)
-snapshots requests and starts a subprocess worker; closing the browser does not
-cancel it. [`studio_worker.py`](src/save_reel/studio_worker.py) coordinates the stage
-APIs, checks compatible saved inputs and checkpoints progress. The editable draft
-and generated run manifests remain separate, so changing a draft does not rewrite
-a completed run. [`studio_models.py`](src/save_reel/studio_models.py) validates
-the four-game structure and consistent titles; [`broll_beats.py`](src/save_reel/broll_beats.py)
-keeps the establishing/detail shots distinct while sharing world/style variables.
-
-Story selection, simulation and writing live in `story_pipeline.py` and its
-`story_*` modules. `polished_narration.py` and `reel_polish.py` implement the current
-speech-timed assembly. The core prompt/media modules below are also retained for
-the individual CLI workflows:
-
 ```text
 prompts/
   __init__.py
@@ -1075,7 +1132,7 @@ src/save_reel/
 tests/
 ```
 
-The original `create` command's prompt-only workflow is:
+The workflow is:
 
 ```text
 ConceptRequest -> ConceptProvider -> ReelConcept -> Reel with four SaveGames
@@ -1101,10 +1158,8 @@ checkpoints at stage boundaries; the prompt stage also checkpoints each save.
 Writes use temporary files and atomic replacement. If a stage raises an exception,
 the manifest records the failure and retains already completed artifacts. A
 provider failure before a valid four-save concept exists leaves a run log but no
-manifest. This original prompt-only pipeline has no automatic resume/retry. Here,
-a completed reel means its configured stages completed; the default stages produce
-prompts only. Studio and the later story/media workflows have their own saved-state
-and resume paths described above.
+manifest. Automatic resume/retry is not part of this milestone. A completed reel
+means the configured stages completed; the default stages produce prompts only.
 
 ## JSON and Python usage
 

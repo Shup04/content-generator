@@ -47,26 +47,73 @@ class ImageSettings(Model):
 class BrollSettings(ImageSettings):
     image_size: Literal["864x1536"] = "864x1536"
     image_background: Literal["opaque"] = "opaque"
-    video_model: Literal["MiniMax-H3", "MiniMax-H3-Max"] = "MiniMax-H3-Max"
+    video_model: Literal["MiniMax-H3", "MiniMax-H3-Max", "MiniMax-Hailuo-02"] = "MiniMax-H3"
     duration: Annotated[int, Field(ge=4, le=15)] = 5
-    resolution: Literal["480P", "768P", "2K"] = "480P"
+    resolution: Literal["480P", "512P", "768P", "1080P", "2K"] = "768P"
     clips_per_save: int = Field(default=2, ge=1, le=2)
+    stills_per_save: int = Field(default=1, ge=1, le=3)
+    visual_mode: Literal["videos", "mixed", "stills"] = "videos"
+
+    @model_validator(mode="before")
+    @classmethod
+    def preserve_saved_still_count(cls, value):
+        if isinstance(value, dict) and value.get("visual_mode") == "stills":
+            value = dict(value)
+            value.setdefault("stills_per_save", value.get("clips_per_save", 2))
+        return value
 
     @model_validator(mode="after")
     def video_capabilities(self):
-        if self.video_model == "MiniMax-H3-Max":
-            if self.duration < 5 or self.resolution == "2K":
-                raise ValueError("MiniMax-H3-Max supports 5–15 seconds at 480P or 768P")
-        elif self.resolution == "480P":
-            raise ValueError("MiniMax-H3 supports 768P or 2K")
+        durations = VIDEO_CAPABILITIES[self.video_model]["durations"].get(self.resolution, [])
+        if self.duration not in durations:
+            raise ValueError(
+                f"{self.video_model} does not support {self.duration}s at {self.resolution}"
+            )
         return self
+
+    def media_kind(self, beat_number: int) -> Literal["video", "still"]:
+        if self.visual_mode == "stills" or (self.visual_mode == "mixed" and beat_number > 1):
+            return "still"
+        return "video"
+
+    @property
+    def shots_per_save(self) -> int:
+        if self.visual_mode == "mixed":
+            return 1 + self.stills_per_save
+        if self.visual_mode == "stills":
+            return self.stills_per_save
+        return self.clips_per_save
+
+    @property
+    def video_prompt_limit(self) -> int:
+        return VIDEO_CAPABILITIES[self.video_model]["prompt_limit"]
+
+
+# Shared by model validation, the CLI and Studio's model controls.
+VIDEO_CAPABILITIES = {
+    "MiniMax-H3": {
+        "durations": {resolution: list(range(4, 16)) for resolution in ("768P", "2K")},
+        "default_resolution": "768P", "default_duration": 5,
+        "prompt_limit": 7000, "video_template": "v2",
+    },
+    "MiniMax-H3-Max": {
+        "durations": {resolution: list(range(5, 16)) for resolution in ("480P", "768P")},
+        "default_resolution": "480P", "default_duration": 5,
+        "prompt_limit": 7000, "video_template": "v2",
+    },
+    "MiniMax-Hailuo-02": {
+        "durations": {"512P": [6, 10], "768P": [6, 10], "1080P": [6]},
+        "default_resolution": "512P", "default_duration": 6,
+        "prompt_limit": 2000, "video_template": "v3",
+    },
+}
 
 
 class BrollRun(Model):
     schema_version: Literal["1.0"] = "1.0"
     kind: Literal["broll_generation"] = "broll_generation"
     run_id: RunId
-    beat_number: int | None = Field(default=None, ge=1, le=2)
+    beat_number: int | None = Field(default=None, ge=1, le=4)
     created_at: datetime = Field(default_factory=utc_now)
     values: BrollValues
     motion: MotionValues

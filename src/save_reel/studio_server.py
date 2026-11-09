@@ -12,6 +12,7 @@ from importlib.resources import files
 from pathlib import Path
 from urllib.parse import unquote, urlsplit
 
+from save_reel.media_models import VIDEO_CAPABILITIES
 from save_reel.studio_jobs import StudioJobs
 from save_reel.studio_models import JobRequest, StudioDraft
 from save_reel.studio_store import (
@@ -115,6 +116,7 @@ class StudioHandler(BaseHTTPRequestHandler):
                         "project": str(store.project),
                         "drafts": store.list_drafts(),
                         "jobs": self.server.jobs.list(),
+                        "video_capabilities": VIDEO_CAPABILITIES,
                         "credentials": {
                             name: bool(os.getenv(name) or keys.get(name))
                             for name in ("OPENAI_API_KEY", "MINIMAX_API_KEY", "ELEVENLABS_API_KEY")

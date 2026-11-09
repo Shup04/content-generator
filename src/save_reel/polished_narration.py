@@ -31,13 +31,15 @@ def timed_plans(store, run, ffprobe):
                               metadata, audio_duration, run.settings.max_tempo)
         span = natural["trim_end"] - natural["trim_start"]
         if cue.cue_id == "intro":
-            natural["captions"] = timed_intro_captions(natural["words"])
+            natural["captions"] = timed_intro_captions(
+                natural["words"], settings.opener.intro_captions,
+            )
             duration = frame_seconds(natural["captions"][-1]["end"], settings.fps)
             settings.intro_seconds = run.effective_intro_seconds = duration
             timeline += [TimelineSegment(kind="intro", start=0, duration=duration),
-                         TimelineSegment(kind="countdown", start=duration,
+                         TimelineSegment(kind="countdown", start=settings.countdown_start,
                                          duration=settings.countdown_seconds)]
-            cursor = duration + settings.countdown_seconds
+            cursor = settings.opener_seconds
             cue.start, cue.duration = 0, duration
             plans.append(natural)
             continue
@@ -95,7 +97,7 @@ def compose_polished(pipeline, store, run, logger):
 
     paths = [encode("opener", opener_inputs(settings),
                     opener_filter(settings, plans[0]["captions"]),
-                    settings.intro_seconds + settings.countdown_seconds)]
+                    settings.opener_seconds)]
     footage = {}
     for segment in run.timeline[2:]:
         number = segment.save_number
@@ -106,6 +108,7 @@ def compose_polished(pipeline, store, run, logger):
             args, graph, footage[str(number)] = world_scene(
                 renderer, store, settings, number, segment.title, segment.duration,
                 len(run.source_render.collection.games[number - 1].broll_run_ids),
+                run.source_render.collection.games[number - 1].broll_kinds,
             )
             name = f"save_{number:02}_world"
             for item in footage[str(number)]:

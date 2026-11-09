@@ -15,6 +15,7 @@ from save_reel.media_models import (
 )
 from save_reel.models import Model, RunId, Text
 from save_reel.narration_models import SpeechSettings
+from save_reel.opener_style import OpenerStyle
 from save_reel.polish_models import ReelPolish
 from save_reel.render_models import RenderSettings
 from save_reel.story_models import StorySettings
@@ -59,7 +60,7 @@ class StudioGame(Model):
             raise ValueError("Game, cartridge and environment titles must match")
         return self
 
-    def clip_numbers(self, limit=2):
+    def clip_numbers(self, limit=4):
         return range(1, min(limit, len(self.broll_beats) or 1) + 1)
 
     def clip_values(self, number=1):
@@ -94,16 +95,23 @@ class StudioDraft(Model):
     cartridge: ImageSettings = Field(
         default_factory=lambda: ImageSettings(image_background="transparent")
     )
-    broll: BrollSettings = Field(default_factory=BrollSettings)
+    broll: BrollSettings = Field(default_factory=lambda: BrollSettings(
+        visual_mode="mixed", clips_per_save=1, stills_per_save=3,
+    ))
     render: RenderSettings = Field(
-        default_factory=lambda: RenderSettings(clip_seconds=10, polish=ReelPolish(enabled=True))
+        default_factory=lambda: RenderSettings(
+            clip_seconds=10, intro_seconds=3, countdown_seconds=3,
+            opener=OpenerStyle(immediate_selection=True, intro_wording="reincarnation",
+                               countdown_after_intro=True),
+            polish=ReelPolish(enabled=True),
+        )
     )
     speech: SpeechSettings = Field(
         default_factory=lambda: SpeechSettings(voice_id="JBFqnCBsd6RMkjVDRZzb")
     )
     cartridge_version: Literal["v1", "v2"] = "v2"
     still_version: Literal["v1", "v2"] = "v2"
-    video_version: Literal["v1", "v2"] = "v2"
+    video_version: Literal["v1", "v2", "v3"] = "v2"
     prompts: dict[str, str] = Field(default_factory=dict)
     games: tuple[StudioGame, ...] = ()
     source_story: RunId | None = None
@@ -113,6 +121,14 @@ class StudioDraft(Model):
     @model_validator(mode="before")
     @classmethod
     def preserve_saved_world_review(cls, value):
+        if isinstance(value, dict) and isinstance(value.get("broll"), dict):
+            # Old single-view drafts used only one shot even with clips_per_save=2.
+            broll, games = value["broll"], value.get("games", ())
+            if "stills_per_save" not in broll and games and all(
+                isinstance(g, dict) and not g.get("broll_beats") for g in games
+            ):
+                broll = {**broll, "stills_per_save": 1, "clips_per_save": 1}
+                value = {**value, "broll": broll}
         if isinstance(value, dict) and isinstance(value.get("story"), dict):
             value = {**value, "story": dict(value["story"])}
             value["story"].setdefault("world_review_prompt_version", None)
@@ -137,7 +153,7 @@ class JobRequest(Model):
     revision: int = Field(ge=0)
     action: Action
     save_number: int | None = Field(default=None, ge=1, le=4)
-    beat_number: int | None = Field(default=None, ge=1, le=2)
+    beat_number: int | None = Field(default=None, ge=1, le=4)
     regenerate: bool = False
     new_stories: bool = False
 

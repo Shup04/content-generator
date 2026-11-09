@@ -21,7 +21,12 @@ from save_reel.prompting import (
 from save_reel.storage import RunStore
 from save_reel.story_export import visual_values
 from save_reel.story_pipeline import StoryWorkflow
-from save_reel.story_prompting import load_prompts, load_travelogue_prompts
+from save_reel.story_prompting import (
+    StoryPromptCompiler,
+    load_editor_prompt,
+    load_prompts,
+    load_travelogue_prompts,
+)
 from save_reel.story_tiers import TIERS
 from save_reel.studio_models import NarrationOrigin, StudioDraft, StudioGame, narration_digest
 
@@ -33,7 +38,8 @@ MEDIA_FILES = {
     "preview.png",
     "story_review.txt",
     "subtitles.srt",
-    "broll_01_still.png", "broll_02_still.png", "broll_01.mp4", "broll_02.mp4",
+    *(f"broll_{i:02}{suffix}" for i in range(1, 5)
+      for suffix in ("_still.png", ".mp4")),
 }
 
 # Presets contain reusable production choices, never reel content or generated assets.
@@ -135,6 +141,11 @@ def validate_prompts(draft: StudioDraft, root: Path) -> None:
                  draft.story.broll_prompt_version, draft.story.world_review_prompt_version)
     if draft.story.prompt_version == "v3" and draft.story.travelogue:
         load_travelogue_prompts(draft.story.travelogue.prompt_version, root)
+    if draft.story.prompt_version == "v3":
+        load_editor_prompt(draft.story.script_editor_prompt_version, root)
+    StoryPromptCompiler("broll_expansion", "v1", prompts_dir=root).render(
+        {"CONTEXT": "preview", "FEEDBACK": ""}
+    )
     # Validate visual placeholders even before a draft has worlds.
     placeholders = {
         "TITLE",
@@ -161,9 +172,15 @@ def validate_prompts(draft: StudioDraft, root: Path) -> None:
     ):
         compiler(version, prompts_dir=root).render(dict.fromkeys(placeholders, "preview"))
     for game in draft.games:
-        for beat in game.clip_numbers():
-            if len(compile_game(draft, game, root, beat)["video"].text) > 7000:
-                raise ValueError(f"{game.title}: compiled video prompt exceeds 7000 characters")
+        for beat in game.clip_numbers(draft.broll.shots_per_save):
+            if draft.broll.media_kind(beat) == "still":
+                continue
+            compiled = compile_game(draft, game, root, beat)["video"].text
+            if len(compiled) > draft.broll.video_prompt_limit:
+                raise ValueError(
+                    f"{game.title}: compiled video prompt exceeds "
+                    f"{draft.broll.video_prompt_limit} characters; try video template v3"
+                )
 
 
 @lru_cache(maxsize=512)

@@ -1,5 +1,6 @@
 """V3: approve a factual world before writing and checking its spoken briefing."""
 
+from save_reel.story_editor import edit_script, source_narration, validate_edit
 from save_reel.story_models import (
     FinalStory,
     GroundedNarration,
@@ -42,7 +43,7 @@ def check_world(slot, world: WorldSimulation, *, require_beats=False) -> None:
 
 def assemble(slot) -> FinalStory:
     """Deterministic bridge to the existing manifest and visual-generation contracts."""
-    c, world, draft = slot.selected, slot.world, slot.narration_draft
+    c, world = slot.selected, slot.world
     spec = world.spec
     return FinalStory(
         brief=SurvivalBrief(
@@ -61,7 +62,7 @@ def assemble(slot) -> FinalStory:
             visual_hook=c.visual_hook,
             unanswered_mystery=c.unanswered_mystery,
             severity=c.severity,
-            narration=(slot.travelogue.selected.paragraph,) if slot.travelogue else draft.narration,
+            narration=(slot.script_edit.narration,) if slot.script_edit else source_narration(slot),
         ),
         cartridge=world.cartridge,
         environment=world.environment,
@@ -77,6 +78,7 @@ def validate_slot(run, slot) -> None:
         from save_reel.story_travelogue import validate_travelogue
 
         validate_travelogue(run, slot)
+        validate_edit(run, slot)
         if slot.final and slot.final != assemble(slot):
             raise ValueError("final story must match its approved world and selected travelogue")
         return
@@ -88,6 +90,7 @@ def validate_slot(run, slot) -> None:
         if not slot.narration_draft:
             raise ValueError("grounding review requires saved narration")
         slot.grounding_review.check(slot.narration_draft)
+    validate_edit(run, slot)
     if slot.final:
         if not slot.grounding_review or slot.grounding_review.problems(slot.narration_draft):
             raise ValueError("final narration requires a passing grounding and usefulness review")
@@ -181,9 +184,10 @@ def narrate_world(workflow, run, slot, store, logger):
         from save_reel.story_travelogue import finish_travelogue
 
         finish_travelogue(workflow, run, slot, store, logger)
+        edit_script(workflow, run, slot, store, logger)
         slot.final = assemble(slot)
         slot.narration_stats = NarrationStats.measure(
-            slot.final.brief.narration, slot.travelogue.policy
+            slot.final.brief.narration, slot.travelogue.policy, validate=slot.script_edit is None,
         )
         workflow._save(run, store)
         return
@@ -216,8 +220,9 @@ def narrate_world(workflow, run, slot, store, logger):
             slot.narration_draft = None
             slot.grounding_review = None
         workflow._save(run, store)
+    edit_script(workflow, run, slot, store, logger)
     slot.final = assemble(slot)
     slot.narration_stats = NarrationStats.measure(
-        slot.final.brief.narration, run.settings.narration
+        slot.final.brief.narration, run.settings.narration, validate=slot.script_edit is None,
     )
     workflow._save(run, store)

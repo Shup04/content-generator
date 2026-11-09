@@ -16,6 +16,7 @@ from save_reel.broll import BrollPipeline
 from save_reel.cli import main
 from save_reel.media_models import BrollSettings, BrollValues, ImageSettings, MotionValues
 from save_reel.models import StageStatus
+from save_reel.providers.hailuo_video import HailuoVideoProvider
 from save_reel.providers.media import GeneratedImage, MediaError, VideoTask
 from save_reel.providers.minimax_video import MiniMaxVideoProvider
 from save_reel.providers.openai_image import OpenAIImageProvider
@@ -151,8 +152,8 @@ def test_minimax_v2_payload_poll_and_download_without_credentials(png):
         task = provider.query(task_id)
         assert provider.download(task.download_url) == mp4
     body = json.loads(requests[0].content)
-    assert body["model"] == "MiniMax-H3-Max"
-    assert body["resolution"] == "480P"
+    assert body["model"] == "MiniMax-H3"
+    assert body["resolution"] == "768P"
     assert body["duration"] == 5
     assert body["ratio"] == "adaptive"
     assert body["content"][1]["role"] == "first_frame"
@@ -161,6 +162,125 @@ def test_minimax_v2_payload_poll_and_download_without_credentials(png):
     assert requests[1].headers["Authorization"] == "Bearer test-minimax-key"
     assert "Authorization" not in requests[2].headers
     assert task.usage == {"output_seconds": 5}
+
+
+def test_hailuo_payload_file_lookup_and_safe_download(png):
+    requests = []
+    mp4 = b"\x00\x00\x00\x18ftypisom" + b"test video"
+
+    def handler(request):
+        requests.append(request)
+        if request.url.path == "/v1/video_generation":
+            return httpx.Response(200, json={
+                "task_id": "hailuo-1", "base_resp": {"status_code": 0},
+            })
+        if request.url.path == "/v1/query/video_generation":
+            assert request.url.params["task_id"] == "hailuo-1"
+            return httpx.Response(200, json={"status": "Success", "file_id": "123"})
+        if request.url.path == "/v1/files/retrieve":
+            assert request.url.params["file_id"] == "123"
+            return httpx.Response(200, json={"file": {"download_url": "https://cdn.example/v.mp4"}})
+        assert "Authorization" not in request.headers
+        return httpx.Response(200, content=mp4)
+
+    settings = BrollSettings(video_model="MiniMax-Hailuo-02", resolution="512P", duration=6)
+    with httpx.Client(transport=httpx.MockTransport(handler)) as client:
+        provider = HailuoVideoProvider("test-key", client)
+        task = provider.query(provider.submit(png, "Small pool ripples", settings))
+        assert provider.download(task.download_url) == mp4
+    body = json.loads(requests[0].content)
+    assert (body["model"], body["resolution"], body["duration"]) == (
+        "MiniMax-Hailuo-02", "512P", 6,
+    )
+    assert body["prompt_optimizer"] is False
+    assert base64.b64decode(body["first_frame_image"].split(",", 1)[1]) == png
+    assert len(requests) == 4
+
+
+@pytest.mark.parametrize("remote,expected", [
+    ("Preparing", "queued"), ("Queueing", "queued"), ("Processing", "running"), ("Fail", "failed"),
+])
+def test_hailuo_task_statuses(remote, expected):
+    with httpx.Client(transport=httpx.MockTransport(
+        lambda request: httpx.Response(200, json={"status": remote})
+    )) as client:
+        assert HailuoVideoProvider("test-key", client).query("123").status == expected
+
+
+def test_hailuo_api_failure_is_redacted_and_never_retried(png):
+    requests = []
+
+    def handler(request):
+        requests.append(request)
+        return httpx.Response(200, json={"base_resp": {
+            "status_code": 1008, "status_msg": "secret-canary",
+        }})
+
+    with httpx.Client(transport=httpx.MockTransport(handler)) as client:
+        with pytest.raises(MediaError, match="no generation retry") as error:
+            HailuoVideoProvider("test-key", client).submit(png, "A room", BrollSettings(
+                video_model="MiniMax-Hailuo-02", duration=6, resolution="512P",
+            ))
+    assert "secret-canary" not in str(error.value)
+    assert len(requests) == 1
+
+
+@pytest.mark.parametrize("model,resolution,duration", [
+    ("MiniMax-Hailuo-02", "480P", 5), ("MiniMax-Hailuo-02", "512P", 5),
+    ("MiniMax-Hailuo-02", "1080P", 10), ("MiniMax-H3-Max", "512P", 6),
+    ("MiniMax-H3", "1080P", 6),
+])
+def test_video_model_rejects_incompatible_settings(model, resolution, duration):
+    with pytest.raises(ValueError, match="does not support"):
+        BrollSettings(video_model=model, resolution=resolution, duration=duration)
+
+
+def test_hailuo_prompt_limit_fails_before_creating_or_paying_for_run(tmp_path, media_input):
+    values, motion = media_input
+    motion.camera_motion = "x" * 2001
+    settings = BrollSettings(video_model="MiniMax-Hailuo-02", resolution="512P", duration=6)
+    with pytest.raises(MediaError, match="2000-character"):
+        BrollPipeline(None, None).prepare(
+            values, motion, settings, runs_dir=tmp_path, video_template_version="v3",
+        )
+    assert not list(tmp_path.iterdir())
+
+
+def test_hailuo_resume_selects_v1_and_reuses_still_and_task(tmp_path, monkeypatch, media_input):
+    from save_reel import media_cli
+
+    settings = BrollSettings(video_model="MiniMax-Hailuo-02", resolution="512P", duration=6)
+    pipeline = BrollPipeline(None, None)
+    values, _ = media_input
+    motion = MotionValues(camera_motion="Slow forward drift", environment_motion="Small ripples",
+                          audio="Silence")
+    store = pipeline.prepare(
+        values, motion, settings, runs_dir=tmp_path, video_template_version="v3",
+    )
+    saved = pipeline.load(store)
+    saved.artifacts["image"] = store.write_bytes(saved.still_filename, b"image", "image/png")
+    saved.video_task_id = "already-submitted"
+    saved.video_attempted = True
+    pipeline._save(store, saved)
+    calls = []
+
+    def handler(request):
+        calls.append(request)
+        assert request.method == "GET"
+        assert request.url.path == "/v1/query/video_generation"
+        assert request.url.params["task_id"] == "already-submitted"
+        return httpx.Response(200, json={"status": "Processing"})
+
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.setenv("MINIMAX_API_KEY", "test-key")
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    monkeypatch.setattr(media_cli.httpx, "Client", lambda: client)
+    assert main([
+        "resume-broll", str(store.run_dir), "--wait-timeout", "0.000001",
+        "--env-file", str(tmp_path / "missing.env"),
+    ]) == 1  # Still processing; resume later with the same saved task ID.
+    assert len(calls) == 1
+    assert pipeline.load(store).video_task_id == "already-submitted"
 
 
 @pytest.mark.parametrize("status", ["queued", "running", "failed", "cancelled"])

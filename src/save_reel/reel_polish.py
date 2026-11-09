@@ -45,14 +45,33 @@ def title_scene(settings, number, title, duration):
 
 
 def plan_footage(durations, target, fps, max_slowdown, allow_still_fallback=True):
-    """Budget whole frames. Each source appears at most once; excess uses a still."""
+    """Budget whole frames. None denotes an intentional still with flexible duration."""
     target_frames = round(target * fps)
-    if not durations or min(durations) <= 0 or target_frames < 1:
+    if not durations or any(d is not None and d <= 0 for d in durations) or target_frames < 1:
         raise ValueError("Positive clip durations and target frames are required")
-    slowdown = min(max_slowdown, max(1, target / sum(durations)))
-    capacities = [max(1, math.floor(d * slowdown * fps + 1e-6)) for d in durations]
     if target_frames < len(durations):
         raise ValueError("Save section must have at least one frame per B-roll beat")
+    if None in durations:
+        # Give every authored shot equal time, then let stills cover any time that
+        # would otherwise need extra video slowdown. Intentional stills do not
+        # depend on the optional fallback for exhausted video footage.
+        share, remainder = divmod(target_frames, len(durations))
+        allocations = [share + (i < remainder) for i in range(len(durations))]
+        for i, duration in enumerate(durations):
+            if duration is not None:
+                allocations[i] = min(allocations[i],
+                                     max(1, math.floor(duration * max_slowdown * fps + 1e-6)))
+        stills = [i for i, duration in enumerate(durations) if duration is None]
+        extra, remainder = divmod(target_frames - sum(allocations), len(stills))
+        for i, index in enumerate(stills):
+            allocations[index] += extra + (i < remainder)
+        return [dict(kind="still" if duration is None else "video", index=i, frames=frames,
+                     slowdown=1 if duration is None else min(
+                         max_slowdown, max(1, frames / (duration * fps))
+                     ))
+                for i, (duration, frames) in enumerate(zip(durations, allocations, strict=True))]
+    slowdown = min(max_slowdown, max(1, target / sum(durations)))
+    capacities = [max(1, math.floor(d * slowdown * fps + 1e-6)) for d in durations]
     # Short speech still shows every beat: divide its frame budget proportionally,
     # rather than exhausting the budget on clip A and silently omitting clip B.
     allocations = capacities[:]
@@ -97,15 +116,18 @@ def lower_third(settings, number, title):
     ]
 
 
-def world_scene(renderer, store, settings, number, title, duration, clip_count):
+def world_scene(renderer, store, settings, number, title, duration, clip_count, kinds=()):
     from save_reel.rendering import probe_media
 
     paths = [f"inputs/save_{number:02}/broll_{i:02}.mp4" for i in range(1, clip_count + 1)]
-    durations = [float(probe_media(store.run_dir / p, renderer.ffprobe)["format"]["duration"])
-                 for p in paths]
+    kinds = kinds or ("video",) * clip_count
+    durations = [None if kind == "still" else
+                 float(probe_media(store.run_dir / p, renderer.ffprobe)["format"]["duration"])
+                 for p, kind in zip(paths, kinds, strict=True)]
     plan = plan_footage(durations, duration, settings.fps, settings.polish.max_slowdown,
                         settings.polish.allow_still_fallback)
-    if settings.polish.still_position == "before" and plan[-1]["kind"] == "still":
+    if ("still" not in kinds and settings.polish.still_position == "before"
+            and plan[-1]["kind"] == "still"):
         plan = [plan[-1], *plan[:-1]]
     inputs, graphs, labels = [], [], []
     for i, item in enumerate(plan):

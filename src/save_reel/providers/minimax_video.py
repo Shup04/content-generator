@@ -45,6 +45,12 @@ class MiniMaxVideoProvider:
             raise MediaError("MiniMax returned a non-JSON response") from None
         if not isinstance(body, dict) or body.get("type") == "error" or body.get("error"):
             raise MediaError("MiniMax returned an API error")
+        base_resp = body.get("base_resp")
+        if base_resp is not None and (
+            not isinstance(base_resp, dict) or base_resp.get("status_code") != 0
+        ):
+            # Never include arbitrary response text, which may echo inputs or credentials.
+            raise MediaError("MiniMax returned an API error; no generation retry was sent")
         return body
 
     def submit(self, image: bytes, prompt: str, settings: BrollSettings) -> str:
