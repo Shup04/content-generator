@@ -1,17 +1,49 @@
 # save-reel
 
-A generator for short-form **Choose Your Save** videos. The story workflow builds
-four practical survival worlds, prepares structured visual variables and deterministic
-prompts, and saves a JSON manifest. The original `create` workflow still prepares four
-mock saves and their label/B-roll prompts. Both mock workflows run without API keys.
+A local production tool for short-form **Choose Your Save** videos. The viewer is
+asked to pick a game cartridge to be reincarnated into, then discovers what living
+inside each of the four fictional worlds would involve. The output is a vertical
+MP4 with cartridge choices, world footage, narration and optional timed captions.
 
-Optional real workflows generate full cartridge renders with GPT Image 2.5,
-or generate B-roll stills and animate them with MiniMax H3. The local `render`
-command combines saved cartridges and B-roll into a vertical MP4 with FFmpeg.
-The `narrate` command adds ElevenLabs speech and timed subtitles from a saved script.
-**Save Reel Studio** connects these stages through a local browser interface, including
-draft editing and full reel generation. Separate flat label image generation, Blender,
-automatic scheduling, and social publishing are not implemented.
+The project connects two kinds of work: inventing distinct worlds with concrete
+rules, resources and permanent costs, and making the cartridge, scenery and spoken
+story describe the same world. World design and review happen before narration;
+structured visual variables then feed versioned image/video prompts. New tiered
+reels contain one `best`, `good`, `risky` and `bad` outcome, so an inviting image does
+not automatically mean an easy place to survive.
+
+**Save Reel Studio** is the current end-to-end interface. It lets you edit drafts,
+prompts and model settings, generate or import stories, reuse completed assets,
+resume interrupted work and download finished reels. New stories author an
+establishing view and three distinct detail views per save. New Studio drafts use
+four transparent cartridges and one video plus three stills per world; two-video
+and still-only modes are also available.
+Polished assembly times the title reveals and footage to the recorded speech.
+Older drafts retain their saved single-clip settings.
+
+The repository also retains the original prompt-only `create` command and separate
+story, media, render and narration commands. They remain useful for inspecting or
+repeating one stage. Separate flat-label image generation, Blender integration,
+automatic scheduling and social publishing are not implemented.
+
+## Start here
+
+| What you want to do | Read |
+| --- | --- |
+| Edit and produce a complete reel in the browser | [Install](#install), then [Local web interface](#local-web-interface) |
+| Understand the current footage and voice layout | [Polished pacing](#polished-pacing-and-survival-tiers) and [B-roll options](#polished-pacing-and-survival-tiers) |
+| Develop or review worlds without buying media | [Generate survival stories without media](#generate-survival-stories-without-media) |
+| Reuse assets or recover an interrupted job | [Saved state and recovery](#saved-state-and-recovery) |
+| Assemble existing media or add voice separately | [Render locally](#render-the-reel-locally) and [Narration and subtitles](#add-narration-and-subtitles) |
+| Inspect the original offline prompt example | [Create a reel](#create-a-reel) |
+| Read the implementation or run existing checks | [Architecture](#architecture) and [Tests](#tests) |
+
+Opening Studio and editing drafts are local operations. Mock story/prompt workflows
+need no API keys. Real story generation uses OpenAI; image generation uses the
+configured OpenAI image model, video uses MiniMax and speech uses ElevenLabs.
+Media and voice generation can incur charges even when the stories came from a mock
+fixture. FFmpeg/ffprobe handle local assembly; provider extras and credentials are
+described in the relevant sections below.
 
 ## How the prompts fit your video
 
@@ -20,8 +52,8 @@ mood. Those values fill the label and B-roll templates; cartridge renders add
 structured shell design values:
 
 1. **Cartridge label:** `prompts/label/v1.txt` describes flat 3:2 artwork with the
-   game title. Later, an image provider will generate the artwork, which can be
-   applied as the cartridge label texture in your Blender scene.
+   game title. This is the original prompt-only route; separate label generation
+   and applying the result to a Blender scene remain unimplemented.
 2. **B-roll still:** `prompts/broll_still/v2.txt` describes a 9:16 game screenshot
    from that same world. It also specifies shot composition and key surfaces.
    The `generate-broll` command generates this still and sends it to MiniMax H3
@@ -30,12 +62,12 @@ structured shell design values:
    with a mysterious teaser label on transparency. `generate-cartridge` produces
    this image from explicit shell material, shape, molded details, mood, and a hint.
 
-The current video uses **four transparent cartridge images and four B-roll
-clips**, each animated from its own still. The `render` command animates the
-cartridge cutouts in FFmpeg and then shows the B-roll. A second clip per story
-can be added to the collection later. The `create` command prepares the eight
-text prompts; it does not generate images or clips. The original supplied
-wording remains in the `v1` templates.
+The current Studio workflow compiles the still/video templates separately for
+each selected authored view while preserving the shared world identity. The
+`render` command animates the cartridge cutouts in FFmpeg and then shows the B-roll;
+legacy collections can still use one clip per save. The original `create` command
+prepares eight text prompts—one label and one still prompt per save—and does not
+generate images or clips. The original supplied wording remains in the `v1` templates.
 The revised B-roll templates use `v2`; all versions use `[VARIABLE]` placeholders.
 
 ## Install
@@ -51,6 +83,53 @@ python -m pip install -e '.[dev]'
 For a regular installation without development tools, use `python -m pip install .`.
 Pydantic v2 is the only dependency for the mock workflow. Installation may download dependencies;
 running the mock workflow does not.
+
+## Offline acceptance demo
+
+The existing Studio workflow has a reproducible local acceptance check. It creates
+four fictional worlds with **two synthetic video beats per world**, assembles a
+216×384 polished MP4 with real FFmpeg, and uses timestamped sine tones in place of
+speech. This deliberately selects two-video mode; it does not change new drafts'
+current mixed-video/still defaults or the creative prompts.
+
+Install Python 3.11+, FFmpeg/ffprobe (with libx264, AAC, libmp3lame, drawtext and
+zoompan support), then use the virtual environment above:
+
+```sh
+python -m pip install -e '.[dev,speech]'
+python scripts/offline_acceptance.py
+```
+
+The command requires no API keys. It creates a fresh temporary project, removes
+provider keys from its child environment, replaces provider boundaries with offline
+fakes, and fails any attempted Python network connection. It never opens this
+checkout's `.env` or `runs/`. The printed temporary directory retains the finished
+MP4, JSON acceptance report, stage manifests, subtitles and FFmpeg commands.
+Installation can download dependencies; the acceptance run itself is offline.
+
+The acceptance check verifies:
+
+- Four cartridges, eight stills, eight distinct video submissions and nine voice cues.
+- Interruption after a video task ID is saved; a fresh worker resumes that task,
+  preserves completed assets byte-for-byte and makes no duplicate submissions.
+- A decoded H.264/AAC MP4, dimensions/duration, audible tones in all nine cue windows,
+  title-before-world timing, ordered clip colours in actual output frames, subtitle
+  timestamps, and capped slowdown with same-world still fallback and no video looping.
+- Finished-library eligibility, exclusion of failed/missing-voice runs, and a repeated
+  completed job that reuses its output without additional provider calls.
+- A historical draft with one authored beat stays single-beat after load/save.
+
+This proves local orchestration and assembly with controlled inputs. It does not
+measure live-provider quality, speech intelligibility, natural timestamp alignment,
+art direction, production-resolution performance or authenticated browser behavior.
+The report identifies all providers as fakes; its mock writer uses the production
+provider label only to exercise the existing paid-request eligibility checks.
+Existing tests separately cover ambiguous request failures and locally extracted
+fallback frames when historical runs have no saved still.
+
+A frame from the synthetic acceptance output (flat colours are intentional):
+
+![Synthetic world footage with title and timed caption](docs/offline-preview.png)
 
 ## Local web interface
 
@@ -132,7 +211,8 @@ save-reel-studio.service` to start it again after stopping it.
 4. **Activity** shows a progress bar, per-stage counts and individual save states.
    Progress measures completed work items, including cached results, not estimated
    time remaining. Technical logs are available in a collapsed section. A finished-reel
-   job is complete only after the narrated MP4 and all five voice segments exist.
+   job is complete only after the narrated MP4 and every planned voice cue exist:
+   nine cues in polished mode, or five in the legacy layout.
 5. **Video library** defaults to **Finished reels only**. Partial narration jobs and
    base renders are excluded. Search by reel name, title or run ID, and filter by type,
    status or earliest date. Watch and download the finished MP4 directly.
@@ -1005,6 +1085,11 @@ and [MiniMax task-query API](https://platform.minimax.io/docs/api-reference/vide
 
 ## Create a reel
 
+This is the original **offline prompt-only** workflow. It writes a manifest and
+text prompts from fixed mock worlds. For a finished video, start with
+[Studio](#local-web-interface); for new world writing without media, use
+[the story workflow](#generate-survival-stories-without-media).
+
 ```sh
 save-reel create --theme "forgotten worlds" --run-id demo
 ```
@@ -1089,6 +1174,31 @@ additional game concepts or cartridge properties are invented for the preview.
 
 ## Architecture
 
+The current Studio path connects the existing stage APIs:
+
+```text
+Editable four-world draft + versioned prompts/settings
+  -> snapshot and background production job
+  -> world selection/review -> world simulation/review -> narration writing
+  -> four cartridge images + selected still/video views per save
+  -> FFmpeg assembly + speech/timed captions -> finished MP4
+```
+
+[`studio_server.py`](src/save_reel/studio_server.py) serves the browser UI on
+loopback using Python's standard library. [`studio_jobs.py`](src/save_reel/studio_jobs.py)
+snapshots requests and starts a subprocess worker; closing the browser does not
+cancel it. [`studio_worker.py`](src/save_reel/studio_worker.py) coordinates the stage
+APIs, checks compatible saved inputs and checkpoints progress. The editable draft
+and generated run manifests remain separate, so changing a draft does not rewrite
+a completed run. [`studio_models.py`](src/save_reel/studio_models.py) validates
+the four-game structure and consistent titles; [`broll_beats.py`](src/save_reel/broll_beats.py)
+keeps the establishing/detail shots distinct while sharing world/style variables.
+
+Story selection, simulation and writing live in `story_pipeline.py` and its
+`story_*` modules. `polished_narration.py` and `reel_polish.py` implement the current
+speech-timed assembly. The core prompt/media modules below are also retained for
+the individual CLI workflows:
+
 ```text
 prompts/
   __init__.py
@@ -1132,7 +1242,7 @@ src/save_reel/
 tests/
 ```
 
-The workflow is:
+The original `create` command's prompt-only workflow is:
 
 ```text
 ConceptRequest -> ConceptProvider -> ReelConcept -> Reel with four SaveGames
@@ -1158,8 +1268,10 @@ checkpoints at stage boundaries; the prompt stage also checkpoints each save.
 Writes use temporary files and atomic replacement. If a stage raises an exception,
 the manifest records the failure and retains already completed artifacts. A
 provider failure before a valid four-save concept exists leaves a run log but no
-manifest. Automatic resume/retry is not part of this milestone. A completed reel
-means the configured stages completed; the default stages produce prompts only.
+manifest. This original prompt-only pipeline has no automatic resume/retry. Here,
+a completed reel means its configured stages completed; the default stages produce
+prompts only. Studio and the later story/media workflows have their own saved-state
+and resume paths described above.
 
 ## JSON and Python usage
 
