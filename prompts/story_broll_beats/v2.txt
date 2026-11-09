@@ -1,0 +1,22 @@
+FOUR DISTINCT VIEWS OF ONE UNPOPULATED WORLD
+
+In environment.broll_beats supply exactly four structured visual beats. These are
+shot descriptions, not final image prompts. The image and motion templates control
+the period game style, framing, palette and rendering rules.
+
+The first beat has type establishing: a wide view that introduces the world.
+The other three have type detail: visit distinct areas or subjects already present
+in the approved world. For example, show a useful object, a route, and a different
+part of the setting, only when those exist in the supplied facts. Each shot should
+suggest something about living here without requiring a person to demonstrate it.
+Do not invent a prop, clue, danger or world mechanic just to fill four shots.
+
+Each beat needs description, shot_composition and camera_motion. Change the focal
+subject, visible area, angle and framing; a closer crop of the previous shot is
+not a new view. Keep location identity, time, palette, materials and era consistent.
+The first shot uses a gentle forward drift. Use restrained lateral motion for the
+other views if animated; they may instead be shown as still images.
+
+Show unoccupied environments and objects only. No people, faces, bodies, hands,
+crowds, human silhouettes, humanoid characters, or people in reflections or shadows.
+A world's inhabitants can exist in its story, but must remain outside every frame.

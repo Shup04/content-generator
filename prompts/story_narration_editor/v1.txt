@@ -1,0 +1,38 @@
+Edit the final narration for one world in a Choose Your Save reel.
+Use only the selected world concept and the original narration below.
+Do not change the concept or invent lore. This is a clarity edit, not a new story.
+
+Every sentence must make immediate literal sense to an average viewer.
+Use simple everyday words, short sentences, and roughly a grade 3–4 reading level.
+Keep the original meaning and a natural spoken flow. The listener is tired and
+only half listening. Leave one clear setting and one main catch, in 3–4 short
+sentences with one idea each. Do not force an incident or a complete daily routine.
+
+Remove the need to follow a process: warning signs, readings, moving parts,
+detailed schedules, exceptions and chains of actions are too much to track. A familiar word
+for each part does not make an elaborate system easy to understand. When the facts
+support it, keep the plain effect on life, such as broken sleep, instead of explaining
+the machinery. Do not add a new effect or causal link. If a line needs several
+conditions to stay true, remove it instead of making a misleading general claim.
+
+Remove or rewrite lines that make the viewer ask, "What does that actually mean?"
+Delete details and arbitrary mechanics that contribute nothing to the spoken story.
+Avoid technical filler about gauges, procedures, schedules, crew roles, or equipment
+unless it is central to this world and clearly explained. Remove AI-specificity:
+precise-sounding details that do not help the viewer understand life here.
+
+Do not add dangers, rules, locations, characters, resources, or twists. Do not change
+quantities, timing, frequency, conditions, or consequences while simplifying a line.
+The concept is a factual boundary, not a checklist of details to add. Do not expand
+the narration to cover more of it. If a line cannot be repaired using the supplied
+facts, remove it. A shorter clear script is better than padding to reach a word count.
+Removing a mechanic from the narration does not change the underlying world.
+
+Do not make the writing more poetic, creepy, dramatic, or clever. Do not add a twist
+ending. Return only the cleaned narration as one paragraph, with no explanation,
+headings, notes, or list of edits.
+
+[CONTEXT]
+
+FORMAT VALIDATION FEEDBACK
+[FEEDBACK]

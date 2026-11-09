@@ -5,7 +5,7 @@ import logging
 from collections.abc import Sequence
 from pathlib import Path
 
-from save_reel.media_models import BrollSettings
+from save_reel.media_models import VIDEO_CAPABILITIES, BrollSettings
 from save_reel.models import ConceptRequest
 from save_reel.pipeline import CreatePipeline
 from save_reel.prompting import BrollStillPromptCompiler, LabelPromptCompiler
@@ -69,10 +69,12 @@ def build_parser() -> argparse.ArgumentParser:
     video_defaults = BrollSettings()
     generate.add_argument("--duration", type=int, choices=range(4, 16),
                           default=video_defaults.duration)
-    generate.add_argument("--resolution", choices=("480P", "768P", "2K"),
+    generate.add_argument("--resolution", choices=sorted({
+        r for model in VIDEO_CAPABILITIES.values() for r in model["durations"]
+    }),
                           default=video_defaults.resolution)
     generate.add_argument(
-        "--video-model", choices=("MiniMax-H3", "MiniMax-H3-Max"),
+        "--video-model", choices=tuple(VIDEO_CAPABILITIES),
         default=video_defaults.video_model
     )
     resume = commands.add_parser(

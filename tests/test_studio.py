@@ -13,6 +13,7 @@ from test_rendering import local_assets  # noqa: F401
 
 from save_reel.broll import BrollPipeline
 from save_reel.cartridge import CartridgePipeline
+from save_reel.media_models import BrollSettings
 from save_reel.models import ConceptRequest
 from save_reel.providers.mock_story import MockStoryProvider
 from save_reel.storage import RunStore
@@ -174,7 +175,7 @@ def test_stills_skip_minimax_and_video_resume_keeps_same_run(store, story, monke
     stills = prepare_job(store, draft, "stills", save_number=3)
     stills.execute()
     assert stills.job["status"] == "completed"
-    assert len(calls) == 2 and all("--image-only" in call for call in calls)
+    assert len(calls) == 4 and all("--image-only" in call for call in calls)
     references = [stills.draft.games[2].clip_run(i) for i in (1, 2)]
     video = prepare_job(store, stills.draft, "videos", job_id="video", save_number=3)
     video.execute()
@@ -249,6 +250,9 @@ def test_http_edit_preview_import_and_no_credentials_disclosure(server, story, m
     status, _, body = request(server, "/api/bootstrap")
     assert status == 200 and b"test-private-value" not in body
     assert json.loads(body)["credentials"]["OPENAI_API_KEY"] is True
+    video = json.loads(body)["video_capabilities"]
+    assert video["MiniMax-Hailuo-02"]["durations"]["512P"] == [6, 10]
+    assert video["MiniMax-H3-Max"]["default_duration"] == 5
     status, _, body = request(server, "/api/drafts", {"name": "Browser draft"})
     assert status == 200
     draft = json.loads(body)
@@ -367,6 +371,7 @@ def test_studio_renders_narrates_and_reuses_unchanged_speech(
         )
     draft = store.create()
     draft.games = tuple(games)
+    draft.broll = BrollSettings(visual_mode="videos", clips_per_save=1)
     draft.render = RenderSettings(
         width=216, height=384, intro_seconds=1, countdown_seconds=1, clip_seconds=0.5
     )

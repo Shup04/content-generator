@@ -10,6 +10,7 @@ from openai import OpenAI
 
 from save_reel.broll import BrollPipeline
 from save_reel.media_models import BrollSettings, BrollValues, MotionValues
+from save_reel.providers.hailuo_video import HailuoVideoProvider
 from save_reel.providers.media import MediaError
 from save_reel.providers.minimax_video import MiniMaxVideoProvider
 from save_reel.providers.openai_image import OpenAIImageProvider
@@ -20,6 +21,10 @@ def run_media_command(args) -> Path:
     load_dotenv(args.env_file, override=False)
     store = RunStore(args.run_dir) if args.command == "resume-broll" else None
     existing = BrollPipeline.load(store) if store is not None else None
+    settings = existing.settings if existing else BrollSettings(
+        image_model=args.image_model, image_quality=args.image_quality,
+        duration=args.duration, resolution=args.resolution, video_model=args.video_model,
+    )
     needs_image = existing is None or "image" not in existing.artifacts
     needs_video = not args.image_only and (existing is None or "video" not in existing.artifacts)
     required = []
@@ -43,19 +48,14 @@ def run_media_command(args) -> Path:
             image_provider = OpenAIImageProvider(client)
         if needs_video:
             client = stack.enter_context(httpx.Client())
-            video_provider = MiniMaxVideoProvider(os.environ["MINIMAX_API_KEY"], client)
+            provider = (HailuoVideoProvider if settings.video_model == "MiniMax-Hailuo-02"
+                        else MiniMaxVideoProvider)
+            video_provider = provider(os.environ["MINIMAX_API_KEY"], client)
         pipeline = BrollPipeline(image_provider, video_provider)
         if store is None:
             values = BrollValues.model_validate_json(args.values.read_text(encoding="utf-8"))
             motion = MotionValues.model_validate_json(
                 args.motion_values.read_text(encoding="utf-8")
-            )
-            settings = BrollSettings(
-                image_model=args.image_model,
-                image_quality=args.image_quality,
-                duration=args.duration,
-                resolution=args.resolution,
-                video_model=args.video_model,
             )
             store = pipeline.prepare(
                 values,

@@ -206,7 +206,7 @@ def test_reload_regenerate_one_narration_and_compile_visuals(generated):
     assert not provider.calls
     new = workflow.regenerate(directory, scope="narration", save_id="save_02", run_id="spoken")
     assert [c["stage"] for c in provider.calls] == [
-        "narration_candidates", "narration_selection"
+        "narration_candidates", "narration_selection", "narration_editor",
     ]
     for i in (0, 2, 3):
         assert new.saves[i] == old.saves[i]

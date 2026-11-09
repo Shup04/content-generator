@@ -1,35 +1,33 @@
-Write the narration for one world in a “choose where you are reincarnated” reel.
+Write narration for one world in a "choose where you are reincarnated" reel.
+The viewer will live here permanently. Write for someone tired and only half
+listening. They must understand the place and its one main catch on the first pass.
 
-The viewer will live here permanently.
+Use the supplied word_range. The default is 35–50 words; prefer its lower end.
+Use 3–4 short sentences, one idea per sentence, with roughly a grade 3–4 reading
+level. Sound like a friend casually telling someone what living here is like.
+Use familiar nouns and direct verbs. Start by making the place immediately clear.
+Then let one ordinary part of life lead naturally to one simple drawback or danger.
 
-Write 45–70 words.
+Do not write a little puzzle the listener has to solve. Do not explain a machine,
+an energy source, a warning signal, or a chain of cause and effect. No readings,
+thresholds, detailed work schedules, named parts or multi-step safety instructions. Prefer
+the plain lived result, such as broken sleep, when the supplied facts support it.
+If a fact needs several conditions or a technical explanation, leave it out.
+Do not change its meaning or imply that a dangerous place is safe.
 
-Use very simple spoken English.
-Aim for roughly a grade 5–6 reading level.
-Use short sentences.
-Prefer common words over formal words.
-Avoid words like “intervals”, “masonry”, “provisions”, “perimeter”, “residence”, or other formal wording unless absolutely necessary.
+Do not force an event, a daily task or a meal into every story. Do not give every
+world the same opening or a dinner scene interrupted by danger. A straightforward
+account of life there is enough. Do not list food, water, shelter and rules.
+Use at most one catch. No extra warning, second twist, filler, poetic line or
+unexplained term at the end. Do not invent facts to make the story flow.
 
-Tell a tiny story about what life is like here.
+Example of the level of effort required to follow it:
+"You live in an empty seaside hotel. Every room has a soft bed and a view of the
+water. You spend your days on the beach. But the road back to town is gone, and
+you will never see home again."
+This is a style example only. Do not copy its facts into another world.
 
-Include:
-- what a normal day feels like
-- one practical thing the viewer does to get by
-- one strange or dangerous rule
-
-Do not describe the image.
-Do not list food, water, shelter, and danger one by one.
-Do not write poetic lines.
-Do not write creepy one-liners just to sound mysterious.
-Do not force a twist ending.
-
-The script should sound like someone casually explaining a strange place they know well.
-
-Example tone:
-
-“Most days here are quiet. You can ride the tram into town and look through the shops for anything people left behind. Food is hard to find, so you learn which bins get emptied last. The tram stops running when the sun goes down. If you miss the last one, stay under the station lights until morning.”
-
-Return only the narration.
+Return only one paragraph of narration.
 
 [CONTEXT]
 [FEEDBACK]

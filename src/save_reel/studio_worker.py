@@ -11,9 +11,9 @@ from pathlib import Path
 from save_reel.broll import BrollPipeline
 from save_reel.cartridge import CartridgePipeline
 from save_reel.concurrency import parallel_each
+from save_reel.media_models import ImageSettings
 from save_reel.models import ConceptRequest
 from save_reel.narration_models import NarrationGame, NarrationScript
-from save_reel.opener_style import INTRO_SCRIPT
 from save_reel.render_models import RenderCollection, RenderGame, RenderRun
 from save_reel.storage import RunStore
 from save_reel.story_pipeline import StoryWorkflow
@@ -109,6 +109,32 @@ class ProductionJob:
             self.completed_stage(stage)
         self.checkpoint()
 
+    def visuals(self):
+        from save_reel.story_cli import _provider
+        from save_reel.studio_visuals import plan_views
+
+        count = self.draft.broll.shots_per_save
+        if self.request.beat_number and self.request.beat_number > count:
+            raise ValueError("Select this shot in the B-roll count before generating it")
+        targets = [g for i, g in enumerate(self.draft.games, 1)
+                   if (not self.request.save_number or i == self.request.save_number)
+                   and (len(g.broll_beats) or 1) < count]
+        if not targets:
+            return
+        self.checkpoint("Planning additional views of the saved worlds")
+        source = StoryWorkflow.load(self.store.run_dir(self.draft.source_story)) if (
+            self.draft.source_story
+        ) else None
+        provider = _provider(self.draft.provider, self.draft.story, self.store.project / ".env")
+        for game in targets:
+            slot = next((s for s in source.saves if s.final.brief.title == game.title), None) if (
+                source
+            ) else None
+            world = (slot.world or slot.final).model_dump(mode="json") if slot else None
+            plan_views(game, count, settings=self.draft.story, prompts=self.prompts,
+                       folder=self.folder, provider=provider, world=world)
+            self.checkpoint()
+
     def media(self, kind):
         targets = [
             (i, g, beat)
@@ -116,14 +142,16 @@ class ProductionJob:
             if not self.request.save_number or i == self.request.save_number
             for beat in ([1] if kind == "cartridges" else
                          [self.request.beat_number] if self.request.beat_number else
-                         g.clip_numbers(self.draft.broll.clips_per_save))
+                         g.clip_numbers(self.draft.broll.shots_per_save))
         ]
         # Validate all requested beats before any paid work begins.
         if kind != "cartridges":
             for _, game, beat in targets:
                 game.clip_values(beat)
-                if beat > self.draft.broll.clips_per_save:
-                    raise ValueError("Enable two clips per save before generating B-roll 2")
+                if beat > self.draft.broll.shots_per_save:
+                    raise ValueError("Select this shot in the B-roll count before generating it")
+        if kind == "videos":
+            targets = [item for item in targets if self.draft.broll.media_kind(item[2]) == "video"]
 
         def work(item):
             number, game, beat = item
@@ -234,6 +262,8 @@ class ProductionJob:
         pipeline = CartridgePipeline(None) if is_cart else BrollPipeline(None, None)
         reuse = None
         saved = None
+        needs_video = self.draft.broll.media_kind(beat_number) == "video"
+        count_fields = {"clips_per_save", "stills_per_save", "visual_mode"}
         if reference:
             saved = pipeline.load(RunStore(self.store.run_dir(reference)))
             compatible = (
@@ -242,11 +272,15 @@ class ProductionJob:
                 and saved.prompt == compiled["cartridge"]
                 if is_cart
                 else saved.values == environment
-                and saved.motion == motion
-                and saved.settings.model_dump(exclude={"clips_per_save"})
-                == self.draft.broll.model_dump(exclude={"clips_per_save"})
                 and saved.still_prompt == compiled["still"]
-                and saved.video_prompt == compiled["video"]
+                and saved.settings.model_dump(include=set(ImageSettings.model_fields))
+                == self.draft.broll.model_dump(include=set(ImageSettings.model_fields))
+                and (not needs_video or (
+                    saved.motion == motion
+                    and saved.settings.model_dump(exclude=count_fields)
+                    == self.draft.broll.model_dump(exclude=count_fields)
+                    and saved.video_prompt == compiled["video"]
+                ))
             )
             if compatible and (not self.request.regenerate or reference == planned):
                 reuse = reference
@@ -295,9 +329,12 @@ class ProductionJob:
         self.checkpoint("Rendering the reel with FFmpeg")
         games = []
         for number, game in enumerate(self.draft.games, 1):
-            numbers = game.clip_numbers(self.draft.broll.clips_per_save)
+            if (len(game.broll_beats) or 1) < self.draft.broll.shots_per_save:
+                raise ValueError(f"Save {number:02} needs additional views. "
+                                 "Generate B-roll stills before rendering.")
+            numbers = game.clip_numbers(self.draft.broll.shots_per_save)
             if not game.cartridge_run or any(not game.clip_run(i) for i in numbers):
-                raise ValueError(f"Save {number:02} needs a cartridge and B-roll clip first")
+                raise ValueError(f"Save {number:02} needs cartridge and B-roll images/clips first")
             cart = CartridgePipeline.load(RunStore(self.store.run_dir(game.cartridge_run)))
             compiled = compile_game(self.draft, game, self.prompts)
             compatible = cart.values == game.cartridge and cart.prompt == compiled["cartridge"]
@@ -305,9 +342,11 @@ class ProductionJob:
                 roll = BrollPipeline.load(RunStore(self.store.run_dir(game.clip_run(beat))))
                 env, motion = game.clip_values(beat)
                 compiled = compile_game(self.draft, game, self.prompts, beat)
-                compatible &= (roll.values == env and roll.motion == motion
+                compatible &= (roll.values == env
                                and roll.still_prompt == compiled["still"]
-                               and roll.video_prompt == compiled["video"])
+                               and (self.draft.broll.media_kind(beat) == "still" or (
+                                   roll.motion == motion and roll.video_prompt == compiled["video"]
+                               )))
             if not compatible:
                 raise ValueError(f"Save {number:02} media no longer matches its variables/prompts. "
                                  "Generate the changed media stage first.")
@@ -319,6 +358,7 @@ class ProductionJob:
                     values_file=str(values_file),
                     cartridge_run_id=game.cartridge_run,
                     broll_run_ids=tuple(game.clip_run(i) for i in numbers),
+                    broll_kinds=tuple(self.draft.broll.media_kind(i) for i in numbers),
                 )
             )
         collection = RenderCollection(
@@ -363,7 +403,7 @@ class ProductionJob:
             pipeline = NarrationPipeline(ElevenLabsSpeechProvider(key, client) if key else None)
             if not target.exists():
                 script = NarrationScript(
-                    intro=INTRO_SCRIPT,
+                    intro=self.draft.render.opener.intro_script,
                     games=tuple(
                         NarrationGame(title=g.title, text=g.narration,
                                       survivability_tier=g.survivability_tier)
@@ -406,6 +446,13 @@ class ProductionJob:
         self.checkpoint()
         try:
             action = self.request.action
+            if action == "videos" and (
+                self.draft.broll.visual_mode == "stills"
+                or (self.request.beat_number
+                    and self.draft.broll.media_kind(self.request.beat_number) == "still")
+            ):
+                raise ValueError("The selected B-roll uses still images. Use B-roll stills "
+                                 "or change the visual mode before generating clips.")
             if action == "stories" or (
                 action == "full"
                 and (
@@ -417,11 +464,13 @@ class ProductionJob:
             if action in ("scripts", "narrate", "full"):
                 self.scripts(force=action == "scripts")
                 self.validate_scripts()
+            if action in ("stills", "videos", "full"):
+                self.visuals()
             if action in ("cartridges", "full"):
                 self.media("cartridges")
             if action in ("stills", "videos", "full"):
                 self.media("stills")
-            if action in ("videos", "full"):
+            if action in ("videos", "full") and self.draft.broll.visual_mode != "stills":
                 self.media("videos")
             if action in ("render", "narrate", "full"):
                 self.progress("render", "reel", "running")

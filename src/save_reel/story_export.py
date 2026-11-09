@@ -121,6 +121,9 @@ def review_text(run: StoryRun) -> str:
         if run.schema_version != "1.0":
             lines += _candidate_debug(slot)
         if run.schema_version == "3.0":
+            if slot.script_edit:
+                lines += ["SCRIPT EDITOR", "Before: " + " ".join(slot.script_edit.source_narration),
+                          "After: " + slot.script_edit.narration, ""]
             lines += ["WORLD SIMULATION"]
             for replacement in slot.world_replacements:
                 lines += [f"Replaced world: {replacement.concept.title}", replacement.reason]
@@ -181,16 +184,17 @@ def review_text(run: StoryRun) -> str:
             if value is not None:
                 lines += [f"{label}:", value, ""]
         lines += ["Narration:"]
-        lines += list(brief.narration) if slot.travelogue else [
+        lines += list(brief.narration) if slot.travelogue or slot.script_edit else [
             f"{i}. {line}" for i, line in enumerate(brief.narration, 1)
         ]
         stats = slot.narration_stats
         if stats:
-            units = "paragraph" if slot.travelogue else "lines"
+            units = "paragraph" if slot.travelogue or slot.script_edit else "lines"
             lines += [
                 f"{stats.words} words / {stats.lines} {units} / "
                 f"~{stats.estimated_seconds}s (estimate only)"
-                + ("" if stats.within_target else " — outside target, within tolerance")
+                + ("" if stats.within_target else " — shortened by script editor"
+                   if slot.script_edit else " — outside target, within tolerance")
             ]
         lines += ["", "-" * 60, ""]
     return "\n".join(lines)
@@ -308,6 +312,7 @@ def export_story(run: StoryRun, store: RunStore):
                 ("narration_candidates", slot.travelogue.candidates if slot.travelogue else None),
                 ("narration_selection", slot.travelogue.review if slot.travelogue else None),
                 ("narration_travelogue", slot.travelogue),
+                ("script_edit", slot.script_edit),
             ):
                 if value is None:
                     continue

@@ -114,7 +114,8 @@ def test_cached_resume_and_one_save_regeneration_preserve_worlds(generated):
     assert not provider.calls
     new = workflow.regenerate(directory, scope="narration", save_id="save_02", run_id="revised")
     assert [c["stage"] for c in provider.calls] == [
-        "narration_description", "narration_prose_candidates", "narration_prose_selection"
+        "narration_description", "narration_prose_candidates", "narration_prose_selection",
+        "narration_editor",
     ]
     for i in (0, 2, 3):
         assert new.saves[i] == old.saves[i]

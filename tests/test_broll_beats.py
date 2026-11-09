@@ -29,30 +29,30 @@ from save_reel.studio_store import compile_game, games_from_story, snapshot_prom
 from save_reel.studio_worker import ProductionJob
 
 
-def test_two_story_beats_compile_and_export_with_shared_style(story, store, tmp_path):
+def test_four_story_beats_compile_and_export_with_shared_style(story, store, tmp_path):
     draft = store.create()
     draft.games = games_from_story(story)
     snapshot_prompts(draft, tmp_path / "prompts")
     assert "broll_beats" in story.templates
-    assert story.templates["broll_beats"].template.version == "v1"
+    assert story.templates["broll_beats"].template.version == "v2"
     exported = RunStore.create(tmp_path / "exports", story.run_id)
     reel = export_story(story, exported)
     for save in reel.saves:
-        for number in (1, 2):
+        for number in range(1, 5):
             assert f"broll_{number:02}_still_prompt" in save.artifacts
             assert f"broll_{number:02}_video_prompt" in save.artifacts
             assert (exported.run_dir / save.artifacts[f"broll_{number:02}_values"].path).is_file()
     for slot, game in zip(story.saves, draft.games, strict=True):
         beats = slot.final.environment.broll_beats
-        assert len(beats) == 2
-        assert [b.type for b in beats] == ["establishing", "detail"]
+        assert len(beats) == 4
+        assert [b.type for b in beats] == ["establishing", "detail", "detail", "detail"]
         assert beats[0].description != beats[1].description
         assert beats[0].shot_composition != beats[1].shot_composition
         first, second = [game.clip_values(i)[0] for i in (1, 2)]
         assert (first.colour_palette, first.mood, first.key_surfaces) == (
             second.colour_palette, second.mood, second.key_surfaces,
         )
-        prompts = [compile_game(draft, game, tmp_path / "prompts", i) for i in (1, 2)]
+        prompts = [compile_game(draft, game, tmp_path / "prompts", i) for i in range(1, 5)]
         assert prompts[0]["still"].text != prompts[1]["still"].text
         assert prompts[0]["video"].text != prompts[1]["video"].text
         for beat, compiled in zip(beats, prompts, strict=True):
@@ -68,9 +68,9 @@ def test_identical_or_cosmetically_changed_beats_are_rejected(story, field):
         EnvironmentVariables.model_validate(env)
 
 
-def test_exactly_two_beats_required_but_legacy_missing_is_allowed(story):
+def test_two_to_four_beats_required_but_legacy_missing_is_allowed(story):
     env = story.saves[0].final.environment.model_dump()
-    for count in (0, 1, 3):
+    for count in (0, 1, 5):
         broken = {**env, "broll_beats": (env["broll_beats"] * 2)[:count]}
         with pytest.raises(ValidationError):
             EnvironmentVariables.model_validate(broken)
@@ -86,9 +86,10 @@ def test_exactly_two_beats_required_but_legacy_missing_is_allowed(story):
 def test_defaults_and_cli_share_provider_configuration():
     draft = StudioDraft(draft_id="defaults")
     assert (draft.broll.video_model, draft.broll.resolution, draft.broll.duration) == (
-        "MiniMax-H3-Max", "480P", 5,
+        "MiniMax-H3", "768P", 5,
     )
-    assert draft.broll.clips_per_save == 2
+    assert draft.broll.shots_per_save == 4
+    assert draft.broll.stills_per_save == 3
     assert draft.render.polish.max_slowdown == 1.5
     assert draft.render.polish.allow_still_fallback
     args = build_parser().parse_args([
@@ -99,6 +100,28 @@ def test_defaults_and_cli_share_provider_configuration():
     )
     assert BrollSettings(video_model="MiniMax-H3", resolution="768P").resolution == "768P"
     assert ReelPolish(max_slowdown=2).max_slowdown == 2  # Explicit legacy opt-in.
+
+
+def test_hailuo_studio_settings_and_both_prompts_round_trip(story, store, tmp_path):
+    draft = store.create()
+    draft.games = games_from_story(story)
+    draft.broll = BrollSettings(video_model="MiniMax-Hailuo-02", resolution="512P", duration=6)
+    draft.video_version = "v3"
+    saved = store.save(draft)
+    reloaded = store.load(saved.draft_id)
+    assert reloaded.broll == draft.broll
+    snapshot_prompts(reloaded, tmp_path / "hailuo-prompts")
+    for game in reloaded.games:
+        texts = [compile_game(reloaded, game, tmp_path / "hailuo-prompts", beat)["video"].text
+                 for beat in (1, 2)]
+        assert texts[0] != texts[1]
+        assert all(len(text) <= 2000 for text in texts)
+    args = build_parser().parse_args([
+        "generate-broll", "--values", "world.json", "--motion-values", "motion.json",
+        "--video-model", "MiniMax-Hailuo-02", "--resolution", "512P", "--duration", "6",
+        "--video-template-version", "v3",
+    ])
+    assert args.video_model == reloaded.broll.video_model
 
 
 @pytest.mark.parametrize("target,slowdown,still", [(9, 1, 0), (12, 1.2, 0), (20, 1.5, 120)])
@@ -118,6 +141,7 @@ def test_two_clip_plan_uses_both_once_and_respects_slowdown(target, slowdown, st
 def test_independent_media_cache_and_selective_regeneration(store, story, monkeypatch):
     draft = store.create()
     draft.games = games_from_story(story)
+    draft.broll = BrollSettings(visual_mode="videos", clips_per_save=2)
     draft.parallel_saves = 1
     draft = store.save(draft)
     calls = {"image": 0, "video": 0}
@@ -130,8 +154,8 @@ def test_independent_media_cache_and_selective_regeneration(store, story, monkey
     class Video:
         def submit(self, image, prompt, settings):
             calls["video"] += 1
-            assert settings.video_model == "MiniMax-H3-Max"
-            assert settings.resolution == "480P" and settings.duration == 5
+            assert settings.video_model == "MiniMax-H3"
+            assert settings.resolution == "768P" and settings.duration == 5
             return f"task-{calls['video']}"
 
         def query(self, task_id):

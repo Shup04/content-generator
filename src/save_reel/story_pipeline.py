@@ -39,7 +39,12 @@ from save_reel.story_models import (
     normalized,
 )
 from save_reel.story_narration_models import TraveloguePolicy, TravelogueState
-from save_reel.story_prompting import load_prompts, load_travelogue_prompts, render_request
+from save_reel.story_prompting import (
+    load_editor_prompt,
+    load_prompts,
+    load_travelogue_prompts,
+    render_request,
+)
 from save_reel.story_seeds import make_seeds
 
 
@@ -126,6 +131,8 @@ class StoryWorkflow:
         travelogue = settings.travelogue if settings.prompt_version == "v3" else None
         if travelogue:
             templates.update(load_travelogue_prompts(travelogue.prompt_version, prompts_dir))
+        if settings.prompt_version == "v3":
+            templates.update(load_editor_prompt(settings.script_editor_prompt_version, prompts_dir))
         history = self._history(runs_dir).recent(
             settings.recent_history_count
             if settings.prompt_version == "v1"
@@ -210,16 +217,20 @@ class StoryWorkflow:
             for field in (
                 "narration_model", "narration_reasoning_effort", "travelogue",
                 "max_output_tokens", "validation_retries",
+                "script_editor_prompt_version",
             ):
                 setattr(run.settings, field, getattr(settings, field))
             policy = run.settings.travelogue or TraveloguePolicy.sol()
             run.templates.update(load_travelogue_prompts(policy.prompt_version, prompts_dir))
+            run.templates.update(load_editor_prompt(settings.script_editor_prompt_version,
+                                                    prompts_dir))
             for slot in run.saves:
                 if slot.save_id not in save_ids:
                     continue
                 slot.final = slot.narration_stats = slot.narration_draft = None
                 slot.grounding_review = None
                 slot.narration_attempts = ()
+                slot.script_edit = None
                 slot.travelogue = TravelogueState(policy=policy)
                 slot.narration_provider = self.provider.name
                 slot.narration_model = (
@@ -314,6 +325,7 @@ class StoryWorkflow:
             slot.narration_draft = None
             slot.grounding_review = None
             slot.narration_attempts = ()
+            slot.script_edit = None
             slot.narration_provider = None
             slot.narration_model = None
             if narration_style in ("travelogue", "sol") or slot.travelogue:
@@ -379,7 +391,7 @@ class StoryWorkflow:
     def _context(self, run, slot):
         settings = run.settings.model_dump(
             mode="json",
-            exclude={"travelogue", "narration_model"} | (
+            exclude={"travelogue", "narration_model", "script_editor_prompt_version"} | (
                 {"world_reasoning_effort", "narration_reasoning_effort"}
                 if run.schema_version != "3.0" else set()
             ),
@@ -466,6 +478,19 @@ class StoryWorkflow:
                     "word_range": [policy.target_min_words, policy.target_max_words],
                     **extra,
                 }
+        if stage == "narration_editor":
+            from save_reel.story_editor import maximum_words, source_narration
+
+            original = source_narration(slot)
+            context = {
+                "selected_world_concept": slot.selected.model_dump(mode="json"),
+                "final_narration": " ".join(original),
+                "length_limit": (
+                    f"Return at most {maximum_words(original, slot.spoken_policy(run.settings))} "
+                    "words. This is a hard maximum, not a target. Shorter is allowed; "
+                    "do not add details to reach the limit."
+                ),
+            }
         if stage in ("brief", "narration"):
             context.pop("creative_history", None)  # Preserve the selected story; no re-invention.
         address = slot.save_id if slot else "reel"
@@ -520,6 +545,7 @@ class StoryWorkflow:
                 status="requested",
             )
             store.write_text(request_path, json.dumps(record, indent=2), "application/json")
+            result = None
             try:
                 value = self.provider.generate(
                     stage=stage, prompt=prompt, context=context, response_type=response_type
@@ -543,11 +569,19 @@ class StoryWorkflow:
                     feedback,
                 )
                 record.update(status="invalid", error=feedback)
+                if stage == "narration_editor" and result is not None:
+                    record["response"] = result.model_dump(mode="json")
                 store.write_text(request_path, json.dumps(record, indent=2), "application/json")
                 if attempt == run.settings.validation_retries:
                     raise ValueError(
                         f"{address} {stage} validation exhausted: {feedback}"
                     ) from None
+                if stage == "narration_editor" and result is not None:
+                    feedback += (
+                        "\nRepair the rejected edit below to meet the format and length limit. "
+                        "Keep only facts from the original narration and selected concept.\n"
+                        + result.model_dump_json()
+                    )
             else:
                 record.update(status="completed", response=result.model_dump(mode="json"))
                 store.write_text(request_path, json.dumps(record, indent=2), "application/json")

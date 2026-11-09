@@ -376,7 +376,9 @@ def test_resume_and_narration_only_regeneration_preserve_approved_world(generate
     assert workflow.resume(directory) == old
     assert not provider.calls
     new = workflow.regenerate(directory, scope="narration", save_id="save_02", run_id="spoken")
-    assert [c["stage"] for c in provider.calls] == ["narration", "narration_review"]
+    assert [c["stage"] for c in provider.calls] == [
+        "narration", "narration_review", "narration_editor",
+    ]
     assert new.saves[1].world == old.saves[1].world
     assert new.saves[1].world_review == old.saves[1].world_review
     for i in (0, 2, 3):
@@ -426,8 +428,10 @@ def test_one_save_regeneration_leaves_the_other_worlds_unchanged(generated):
     assert new.saves[2].selected.title != old.saves[2].selected.title
     for i in (0, 1, 3):
         assert new.saves[i] == old.saves[i]
-    assert all(c["stage"] == "reel_review" or c["context"]["save_id"] == "save_03"
-               for c in provider.calls)
+    assert all(c["stage"] == "reel_review" or (
+        c["context"]["selected_world_concept"]["candidate_id"].startswith("save_03_")
+        if c["stage"] == "narration_editor" else c["context"]["save_id"] == "save_03"
+    ) for c in provider.calls)
 
 
 def test_grounding_review_must_cover_all_lines_in_order(generated):

@@ -113,6 +113,8 @@ def test_presets_and_template_rollback_keep_stories_assets_and_snapshots(store, 
 @pytest.mark.parametrize("change", ["motion", "model", "force"])
 def test_video_change_or_force_reuses_exact_still(store, story, monkeypatch, change):
     draft = store.create()
+    draft.broll = BrollSettings(visual_mode="videos", clips_per_save=1,
+                                video_model="MiniMax-H3-Max", resolution="480P")
     draft.games = games_from_story(story)
     for game in draft.games:
         game.broll_beats = ()
@@ -187,6 +189,8 @@ def test_minimax_model_capabilities(model, resolution, duration, valid):
 
 def test_corrupt_reused_still_remains_blocked_on_resume(store, story, monkeypatch):
     draft = store.create()
+    draft.broll = BrollSettings(visual_mode="videos", clips_per_save=1,
+                                video_model="MiniMax-H3-Max", resolution="480P")
     draft.games = games_from_story(story)
     for game in draft.games:
         game.broll_beats = ()
@@ -273,6 +277,7 @@ def test_full_job_exports_real_mp4_and_library_excludes_incomplete_runs(
 
     monkeypatch.setattr(ProductionJob, "command", command)
     draft = store.create("Complete production test")
+    draft.broll = BrollSettings(visual_mode="videos", clips_per_save=2)
     draft.seed = 41
     draft.render = RenderSettings(
         width=216, height=384, intro_seconds=1, countdown_seconds=1, clip_seconds=2,

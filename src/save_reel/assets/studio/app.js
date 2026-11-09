@@ -3,6 +3,7 @@
 const $ = (id) => document.getElementById(id);
 const h = (value) => String(value ?? "").replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 let token, draft, drafts = [], jobs = [], credentials = {}, defaults, runs = [];
+let videoCapabilities = {};
 let tab = "workspace", dirty = false, selectedPrompt = "story_narration_prose_candidate/v3.txt";
 let selectedJob = null, lastActive = null, runSearch = "", runKind = "finished", polling = false;
 let mediaSave = "", mediaBeat = "", forceMedia = false, allPrompts = false;
@@ -75,11 +76,24 @@ const descriptions = {
   scripts:"Rewrite narration from the saved worlds with the configured OpenAI writer. Images and clips stay saved.",
   cartridges:"Generate cartridge PNGs through OpenAI. Matching saved images are reused.",
   stills:"Generate B-roll stills through OpenAI. This does not call MiniMax.",
-  videos:"Generate missing stills and MiniMax clips. Matching completed clips are reused.",
+  videos:"Generate missing stills and the MiniMax clips selected by your B-roll visual mode. Matching completed clips are reused.",
   render:"Assemble existing assets locally with FFmpeg, without speech generation.",
   narrate:"Render existing assets, then add ElevenLabs narration and subtitles. Matching voice recordings are reused.",
-  full:"Generate missing stories and media, then render a narrated reel. Uses OpenAI, MiniMax and ElevenLabs."
+  full:"Generate missing stories and media, then render a narrated reel. Uses paid image and voice generation, plus video generation when selected."
 };
+function shotCount() {
+  const mode=draft.broll.visual_mode||"videos";
+  return mode==="videos"?draft.broll.clips_per_save:(draft.broll.stills_per_save||1)+(mode==="mixed"?1:0);
+}
+function visualModeControls() {
+  const mode=draft.broll.visual_mode||"videos";
+  const hints={videos:"Animate each selected shot. Two clips per save use up to 8 video generations per reel.",mixed:`1 video + ${draft.broll.stills_per_save||1} stills per save (${shotCount()} shots total). Up to 4 video generations per reel, plus image and voice generation.`,stills:"Use generated images for every shot. No MiniMax calls. Matching saved images are reused."};
+  return input("broll.visual_mode","B-roll visuals",{choices:[["videos","Video clips"],["mixed","1 video + still images"],["stills","Still images only"]],full:true,hint:hints[mode]})+
+    (mode==="videos"?input("broll.clips_per_save","Video clips per save",{choices:[1,2]}):input("broll.stills_per_save","Still images per save",{choices:[1,2,3],hint:mode==="mixed"?"In addition to the one video clip.":"Each image shows a distinct view of the world."}));
+}
+function videoSelected(number) {
+  return number<=shotCount() && draft.broll.visual_mode!=="stills" && !(draft.broll.visual_mode==="mixed" && number>1);
+}
 function workspace() {
   const ready = draft.games.length === 4;
   const latest=jobs.find(j=>j.draft_id===draft.draft_id&&j.status==="completed"&&j.outputs.reel);
@@ -87,14 +101,15 @@ function workspace() {
     latest ? `<button class="button primary" data-watch="${h(latest.outputs.reel)}/reel.mp4">Watch latest reel ↗</button>` : "") +
     `<fieldset ${locked() ? "disabled" : ""}><div class="panel"><div class="fields">
       ${input("name","Reel name")}
+      ${visualModeControls()}
       <div class="field"><label for="story-mode">Stories for this reel</label><select id="story-mode"><option value="existing" ${storyMode==="existing"?"selected":""} ${ready?"":"disabled"}>Use the four stories below</option><option value="new" ${storyMode==="new"?"selected":""}>Generate four new stories</option></select><p class="hint">Import a saved story from the library, or generate new worlds.</p></div>
       ${storyMode==="new"?input("theme","Story direction",{full:true,hint:"A brief for the world writer, such as ‘quiet coastal towns with strange working routines’. It is not spoken in the reel."}):""}
-      </div><div class="action-note"><div><strong>Stories → cartridges → stills → clips → voice → finished reel</strong><p>Uses OpenAI, MiniMax and ElevenLabs. Matching saved assets are reused.<br>Four saves run in parallel within each stage. The final MP4 includes narration and your caption settings.</p></div>
+      </div><div class="action-note"><div><strong>Stories → cartridges → stills${draft.broll.visual_mode==="stills"?"":" → clips"} → voice → finished reel</strong><p>${draft.broll.visual_mode==="stills"?"Uses OpenAI and ElevenLabs. Video generation is skipped.":"Uses OpenAI, MiniMax and ElevenLabs."} Matching saved assets are reused.<br>Four saves run in parallel within each stage. The final MP4 includes narration and your caption settings.</p></div>
       <button class="button primary" data-action="full" ${active()?"disabled":""}>Generate finished reel ↗</button></div></div></fieldset>
     <details class="panel"><summary>Advanced: run or regenerate a single stage</summary><p class="hint">These controls produce individual parts. Use Generate finished reel above for the complete video.</p>
       <fieldset ${locked()?"disabled":""}><div class="fields">${input("provider","Story-only test provider",{choices:[["openai","OpenAI · live stories"],["mock","Mock · offline fixtures"]],hint:"Only affects story generation. Finished reels with new stories always use OpenAI."})}</div></fieldset>
-      <div class="pipeline">${stageButton("stories","Stories only")}${stageButton("scripts","Rewrite narration only",!ready || !draft.source_story)}${stageButton("cartridges","Cartridges",!ready)}${stageButton("stills","B-roll stills",!ready)}${stageButton("videos","B-roll clips",!ready)}</div>
-      <div class="toolbar"><label for="media-save">Saves to update</label><select id="media-save"><option value="">All four saves</option>${[1,2,3,4].map(i=>`<option value="${i}" ${String(i)===mediaSave?"selected":""}>Save 0${i}</option>`).join("")}</select><label for="media-beat">B-roll to update</label><select id="media-beat">${[["","Both clips"],["1","B-roll 1"],["2","B-roll 2"]].map(([v,l])=>`<option value="${v}" ${mediaBeat===v?"selected":""}>${l}</option>`).join("")}</select><label class="check"><input type="checkbox" id="force-media" ${forceMedia?"checked":""}>Make a new version, even if a matching asset exists</label></div>
+      <div class="pipeline">${stageButton("stories","Stories only")}${stageButton("scripts","Rewrite narration only",!ready || !draft.source_story)}${stageButton("cartridges","Cartridges",!ready)}${stageButton("stills","B-roll stills",!ready)}${stageButton("videos","B-roll clips",!ready || !videoSelected(Number(mediaBeat||1)))}</div>
+      <div class="toolbar"><label for="media-save">Saves to update</label><select id="media-save"><option value="">All four saves</option>${[1,2,3,4].map(i=>`<option value="${i}" ${String(i)===mediaSave?"selected":""}>Save 0${i}</option>`).join("")}</select><label for="media-beat">B-roll to update</label><select id="media-beat">${[["","All selected shots"],...Array.from({length:shotCount()},(_,i)=>[String(i+1),`Shot ${i+1} · ${videoSelected(i+1)?"video":"still"}`])].map(([v,l])=>`<option value="${v}" ${mediaBeat===v?"selected":""}>${l}</option>`).join("")}</select><label class="check"><input type="checkbox" id="force-media" ${forceMedia?"checked":""}>Make a new version, even if a matching asset exists</label></div>
       <p class="hint">New versions use paid API calls. Regenerating clips reuses matching stills. Story-only generation replaces all four stories in this draft; duplicate it to keep a variant.</p>
       <div class="run-actions">${stageButton("render","Base video only · local",!ready)}${stageButton("narrate","Finish existing media + voice",!ready)}</div>
     </details>
@@ -114,10 +129,10 @@ function gameCard(game,i) {
   return `<article class="panel game"><div class="game-top">${game.cartridge_run ? `<img class="game-art" src="/media/${h(game.cartridge_run)}/cartridge.png" alt="${h(game.title)} cartridge" loading="lazy">` : `<div class="game-index">0${i+1}</div>`}<div class="game-name"><label for="game-title-${i}" class="eyebrow">SAVE 0${i+1}</label><input id="game-title-${i}" data-path="games.${i}.title" value="${h(game.title)}"></div></div>
     <div class="game-body"><label for="narration-${i}">Narration <span class="word-count" id="words-${i}">${words} words</span></label><p class="hint">${game.narration_origin?.provider==="mock" ? "Offline fixture · real narration will be written before finishing this reel." : game.narration_origin?.provider==="openai" ? `Written with ${h(game.narration_origin.model)}` : "Editable script"}</p><textarea id="narration-${i}" class="narration" data-path="games.${i}.narration">${h(game.narration)}</textarea>
     ${input(`games.${i}.survivability_tier`,"Survivability tier",{choices:[["","Choose tier"],"best","good","risky","bad"],hint:"One of each per reel. This controls the short spoken verdict."})}${groups.map(([key,title])=>`<details><summary>${title}</summary>${Object.entries(game[key]).filter(([name,value])=>!['title','game_title',...(game.broll_beats?.length?['shot_composition','camera_motion']:[])].includes(name)&&value!==null).map(([name])=>input(`games.${i}.${key}.${name}`,labels[name]||name,{area:true})).join("")}</details>`).join("")}
-    ${(game.broll_beats||[]).map((beat,j)=>`<details><summary>B-roll ${j+1} · ${h(beat.type)}</summary>${["description","shot_composition","camera_motion"].map(name=>input(`games.${i}.broll_beats.${j}.${name}`,labels[name]||"Visible area / subject",{area:true})).join("")}<div class="media-links">${beat.run_id?`<button class="button quiet" data-watch="${h(beat.run_id)}/broll_0${j+1}.mp4">View B-roll ${j+1}</button><button class="button quiet" data-watch="${h(beat.run_id)}/broll_0${j+1}_still.png">View still ${j+1}</button>`:""}</div></details>`).join("")}
-    <div class="media-links">${!game.broll_beats?.length&&game.broll_run?`<button class="button quiet" data-watch="${h(game.broll_run)}/broll_video.mp4">View B-roll</button><button class="button quiet" data-watch="${h(game.broll_run)}/broll_still.png">View still</button>`:""}</div>${!game.broll_beats?.length?'<p class="hint">Legacy single-clip world. New stories include two distinct visual beats.</p>':""}</div></article>`;
+    ${(game.broll_beats||[]).map((beat,j)=>`<details><summary>B-roll ${j+1} · ${h(beat.type)}</summary>${["description","shot_composition","camera_motion"].map(name=>input(`games.${i}.broll_beats.${j}.${name}`,labels[name]||"Visible area / subject",{area:true})).join("")}<div class="media-links">${beat.run_id?`${videoSelected(j+1)?`<button class="button quiet" data-watch="${h(beat.run_id)}/broll_0${j+1}.mp4">View B-roll ${j+1}</button>`:""}<button class="button quiet" data-watch="${h(beat.run_id)}/broll_0${j+1}_still.png">View still ${j+1}</button>`:""}</div></details>`).join("")}
+    <div class="media-links">${!game.broll_beats?.length&&game.broll_run?`${videoSelected(1)?`<button class="button quiet" data-watch="${h(game.broll_run)}/broll_video.mp4">View B-roll</button>`:""}<button class="button quiet" data-watch="${h(game.broll_run)}/broll_still.png">View still</button>`:""}</div>${(game.broll_beats?.length||1)<shotCount()?'<p class="hint">Additional views will be planned from this world before generating the selected shots.</p>':""}${!game.broll_beats?.length?'<p class="hint">Legacy single-clip world. Additional views are planned when you generate more shots.</p>':""}</div></article>`;
 }
-const promptTitles = {story_narration_prose_candidate:"Narration writer",story_narration_description:"Concise world description",story_narration_prose_selection:"Narration selection",story_candidates:"World candidates",story_world_simulation:"World simulation",story_world_review:"World review",story_review:"Candidate review",story_reel_review:"Reel diversity review",story_rules:"World writing rules",story_tiers:"Survival outcome spread",story_broll_beats:"Two B-roll beats",cartridge:"Cartridge image",broll_still:"B-roll still",broll_video:"B-roll video"};
+const promptTitles = {story_narration_editor:"Final script editor",story_narration_prose_candidate:"Narration writer",story_narration_description:"Concise world description",story_narration_prose_selection:"Narration selection",story_candidates:"World candidates",story_world_simulation:"World simulation",story_world_review:"World review",story_review:"Candidate review",story_reel_review:"Reel diversity review",story_rules:"World writing rules",story_tiers:"Survival outcome spread",story_broll_beats:"World shots",story_broll_expansion:"Additional world views",cartridge:"Cartridge image",broll_still:"B-roll still",broll_video:"B-roll video"};
 function promptName(path) { const [folder,version]=path.split("/"); return `${promptTitles[folder] || folder.replaceAll("_"," ")} · ${version.replace(".txt","")}`; }
 function activePrompts() {
   const world=draft.story.prompt_version, narration=draft.story.travelogue?.prompt_version;
@@ -130,7 +145,7 @@ function activePrompts() {
     else if(narration)stages.push("narration_candidates","narration_selection");
     else stages.push("narration","narration_review");
   }
-  return new Set([...(draft.story.broll_prompt_version?[`story_broll_beats/${draft.story.broll_prompt_version}.txt`]:[]),...(draft.story.tier_prompt_version?[`story_tiers/${draft.story.tier_prompt_version}.txt`]:[]),...stages.map(stage=>`story_${stage}/${stage==="world_review"?(draft.story.world_review_prompt_version||world):stage.startsWith("narration_")&&narration?narration:world}.txt`),`cartridge/${draft.cartridge_version}.txt`,`broll_still/${draft.still_version}.txt`,`broll_video/${draft.video_version}.txt`]);
+  return new Set(["story_broll_expansion/v1.txt",...(world==="v3"&&draft.story.script_editor_prompt_version?[`story_narration_editor/${draft.story.script_editor_prompt_version}.txt`]:[]),...(draft.story.broll_prompt_version?[`story_broll_beats/${draft.story.broll_prompt_version}.txt`]:[]),...(draft.story.tier_prompt_version?[`story_tiers/${draft.story.tier_prompt_version}.txt`]:[]),...stages.map(stage=>`story_${stage}/${stage==="world_review"?(draft.story.world_review_prompt_version||world):stage.startsWith("narration_")&&narration?narration:world}.txt`),`cartridge/${draft.cartridge_version}.txt`,`broll_still/${draft.still_version}.txt`,`broll_video/${draft.video_version}.txt`]);
 }
 function promptEditor() {
   const activeNames=activePrompts();
@@ -145,9 +160,9 @@ function settings() {
   const efforts=["low","medium","high","xhigh","max"], images=["gpt-image-2.5-sunburst","gpt-image-2.5-flare"], qualities=["low","medium","high","xhigh","max"];
   const sections = [
     ["Story & narration",`${input("parallel_saves","Parallel saves per stage",{choices:[1,2,3,4],hint:"Lower this if your provider rate limits simultaneous requests."})}${input("story.model","World model")}${input("story.narration_model","Narration model")}${input("story.world_reasoning_effort","World reasoning",{choices:efforts})}${input("story.world_review_reasoning_effort","World review reasoning",{choices:[["","Inherit world reasoning"],...efforts]})}${input("story.narration_reasoning_effort","Narration reasoning",{choices:efforts})}${input("story.candidate_reasoning_effort","Candidate reasoning",{choices:[["","Inherit world reasoning"],...efforts]})}${input("story.validation_retries","Validation retries",{type:"number"})}${input("story.candidates_per_save","Candidates per save",{type:"number"})}${input("seed","Random seed (optional)",{type:"number"})}${draft.story.travelogue ? input("story.travelogue.target_min_words","Minimum words",{type:"number"})+input("story.travelogue.target_max_words","Maximum words",{type:"number"}) : ""}`],
-    ["Images & clips",`${input("cartridge.image_model","Cartridge model",{choices:images})}${input("cartridge.image_quality","Cartridge quality",{choices:qualities})}${input("broll.image_model","B-roll image model",{choices:images})}${input("broll.image_quality","B-roll image quality",{choices:qualities})}${input("broll.video_model","Video model",{choices:["MiniMax-H3","MiniMax-H3-Max"]})}${input("broll.clips_per_save","Clips per save",{choices:[1,2]})}${input("broll.duration","Generated clip length (seconds)",{type:"number"})}${input("broll.resolution","Video resolution",{choices:draft.broll.video_model==="MiniMax-H3-Max"?["480P","768P"]:["768P","2K"]})}`],
-    ["Voice & assembly",`${input("speech_parallel_saves","Parallel voice recordings",{choices:[1,2,3,4],hint:"Separate ElevenLabs limit. Defaults to 2; increase only if your plan supports it."})}${input("speech.voice_id","ElevenLabs voice ID")}${input("speech.model_id","Speech model")}${input("speech.speed","Voice speed",{type:"number"})}${input("render.polish.enabled","Speech-timed cartridge reveals and varied footage",{type:"checkbox"})}${input("render.polish.title_seconds","Cartridge title beat (seconds)",{type:"number"})}${input("render.polish.max_slowdown","Maximum clip slowdown",{type:"number"})}${input("render.polish.allow_still_fallback","Use world still when footage runs out",{type:"checkbox"})}${input("render.polish.still_position","World still placement",{choices:["after","before"]})}${input("render.polish.still_zoom","Still zoom amount",{type:"number"})}${input("render.clip_seconds","Base preview duration per world (seconds)",{type:"number",hint:"In polished mode, final pacing follows actual speech length."})}${input("render.fps","Output frame rate",{choices:[24,30,60]})}${input("render.countdown_seconds","Countdown (seconds)",{type:"number"})}${input("speech.subtitles","Show subtitles",{type:"checkbox"})}${!draft.render.polish.enabled?input("render.loop_short_clips","Legacy: loop short B-roll clips",{type:"checkbox"}):""}${["best","good","risky","bad"].map(t=>input(`render.polish.tier_intros.${t}`,`${t[0].toUpperCase()+t.slice(1)} narrator intro`)).join("")}`],
-    ["Active templates",`${input("story.prompt_version","World prompts",{choices:["v1","v2","v3"]})}${input("story.seed_catalog_version","Seed catalog",{choices:["v1","v2"]})}${input("story.world_review_prompt_version","World review prompt",{choices:[["","Inherit world prompts"],["v4","v4 — Game-world consistency"],["v3","v3 — Original review"]]})}${draft.story.travelogue?input("story.travelogue.prompt_version","Narration prompt",{choices:["v1","v2","v3"]}):""}${input("cartridge_version","Cartridge template",{choices:["v1","v2"]})}${input("still_version","Still template",{choices:["v1","v2"]})}${input("video_version","Video template",{choices:["v1","v2"]})}`]
+    ["Images & clips",`${visualModeControls()}${input("cartridge.image_model","Cartridge model",{choices:images})}${input("cartridge.image_quality","Cartridge quality",{choices:qualities})}${input("broll.image_model","B-roll image model",{choices:images})}${input("broll.image_quality","B-roll image quality",{choices:qualities})}${draft.broll.visual_mode==="stills"?"":`${input("broll.video_model","Video model",{choices:Object.keys(videoCapabilities)})}${input("broll.duration","Generated clip length (seconds)",{choices:videoCapabilities[draft.broll.video_model].durations[draft.broll.resolution]})}${input("broll.resolution","Video resolution",{choices:Object.keys(videoCapabilities[draft.broll.video_model].durations)})}`}`],
+    ["Voice & assembly",`${input("speech_parallel_saves","Parallel voice recordings",{choices:[1,2,3,4],hint:"Separate ElevenLabs limit. Defaults to 2; increase only if your plan supports it."})}${input("speech.voice_id","ElevenLabs voice ID")}${input("speech.model_id","Speech model")}${input("speech.speed","Voice speed",{type:"number"})}${input("render.polish.enabled","Speech-timed cartridge reveals and varied footage",{type:"checkbox"})}${input("render.polish.title_seconds","Cartridge title beat (seconds)",{type:"number"})}${input("render.polish.max_slowdown","Maximum clip slowdown",{type:"number"})}${input("render.polish.allow_still_fallback","Use world still when footage runs out",{type:"checkbox"})}${input("render.polish.still_position","World still placement",{choices:["after","before"]})}${input("render.polish.still_zoom","Still zoom amount",{type:"number",hint:"Gentle zoom for generated stills and fallback images in speech-timed mode. Set to 0 for a static image."})}${input("render.clip_seconds","Base preview duration per world (seconds)",{type:"number",hint:"In polished mode, final pacing follows actual speech length."})}${input("render.fps","Output frame rate",{choices:[24,30,60]})}${input("render.opener.intro_wording","Intro wording",{choices:[["reincarnation","Full reincarnation explanation"],["short","Short: Pick your next life"]]})}${input("render.opener.immediate_selection","Show cartridges from the first frame",{type:"checkbox",hint:"The cartridges stay visible while the intro plays."})}${input("render.opener.countdown_after_intro","Start countdown after the intro finishes",{type:"checkbox",hint:"Wait for the last spoken intro word before showing numbers or playing countdown beeps."})}${input("render.countdown_seconds","Selection countdown (seconds)",{type:"number"})}${input("speech.subtitles","Show subtitles",{type:"checkbox"})}${!draft.render.polish.enabled?input("render.loop_short_clips","Legacy: loop short B-roll clips",{type:"checkbox"}):""}${["best","good","risky","bad"].map(t=>input(`render.polish.tier_intros.${t}`,`${t[0].toUpperCase()+t.slice(1)} narrator intro`)).join("")}`],
+    ["Active templates",`${input("story.prompt_version","World prompts",{choices:["v1","v2","v3"]})}${input("story.seed_catalog_version","Seed catalog",{choices:["v1","v2"]})}${input("story.script_editor_prompt_version","Final script editor",{choices:[["v1","v1 — Clarity edit"],["","Off"]]})}${input("story.world_review_prompt_version","World review prompt",{choices:[["","Inherit world prompts"],["v4","v4 — Game-world consistency"],["v3","v3 — Original review"]]})}${draft.story.travelogue?input("story.travelogue.prompt_version","Narration prompt",{choices:["v1","v2","v3"]}):""}${input("cartridge_version","Cartridge template",{choices:["v1","v2"]})}${input("still_version","Still template",{choices:["v1","v2"]})}${input("video_version","Video template",{choices:["v1","v2","v3"]})}`]
   ];
   return heading("Models & settings", "Tune this reel, or reuse a preset. Existing videos keep their original settings.") + presetControls() +
     `<div class="credentials">${Object.entries(credentials).map(([name,ok])=>`<span class="pill ${ok?"":"failed"}">${h(name.replace("_API_KEY",""))} · ${ok?"key configured":"key missing"}</span>`).join("")}</div><p class="hint">Keys stay in your local .env file. Studio shows only whether they are configured.</p>
@@ -160,8 +175,8 @@ function library() {
     `<div class="library-toolbar"><input id="run-search" aria-label="Search saved runs" placeholder="Search titles or run names…" value="${h(runSearch)}"><select id="run-kind" aria-label="Filter run type">${[["finished","Finished reels only"],["all","All assets and runs"],["narration","Narration runs (all stages)"],["render","Base renders"],["story","Stories"],["cartridge","Cartridges"],["broll","B-roll"]].map(([value,label])=>`<option value="${value}" ${runKind===value?"selected":""}>${label}</option>`).join("")}</select><select id="run-status" aria-label="Filter status">${["all","completed","pending","running","failed"].map(v=>`<option value="${v}" ${runStatus===v?"selected":""}>${v==="all"?"Any status":v}</option>`).join("")}</select><input id="run-date" type="date" aria-label="Created on or after" value="${h(runDate)}"></div><p class="hint">${runKind==="finished"?"Only complete MP4s with all required voice segments are shown. ":""}${visible.length} runs${visible.length>120?" · showing the latest 120":""}</p><div class="library-grid">${visible.slice(0,120).map(runCard).join("")}</div>${visible.length?"":'<div class="empty"><h2>No matching runs</h2><p>Generate a story draft to start your library.</p></div>'}`;
 }
 function runCard(run) {
-  const file = ["reel.mp4","broll_video.mp4","broll_01.mp4","broll_02.mp4","cartridge.png","broll_still.png","broll_01_still.png","broll_02_still.png"].find(f=>run.files.includes(f));
-  const image=["preview.png","cartridge.png","broll_still.png","broll_01_still.png","broll_02_still.png"].find(f=>run.files.includes(f));
+  const file = ["reel.mp4","broll_video.mp4","broll_01.mp4","broll_02.mp4","broll_03.mp4","broll_04.mp4","cartridge.png","broll_still.png","broll_01_still.png","broll_02_still.png","broll_03_still.png","broll_04_still.png"].find(f=>run.files.includes(f));
+  const image=["preview.png","cartridge.png","broll_still.png","broll_01_still.png","broll_02_still.png","broll_03_still.png","broll_04_still.png"].find(f=>run.files.includes(f));
   return `<article class="run-card"><div class="run-visual ${h(run.kind)}">${image?`<img loading="lazy" src="/media/${h(run.run_id)}/${image}" alt="${h(run.titles.join(", ")||run.run_id)}">`:`<span class="type-mark">${({narration:"REEL",render:"REEL",story:"01—04",cartridge:"SAVE",broll:"PLAY"})[run.kind]}</span>`}</div><div class="run-content"><span class="pill ${h(run.status)}">${run.finished?"Finished reel":h(run.kind)} · ${h(run.status)}</span><h3>${h(run.name||run.titles.join(" / ")||run.run_id)}</h3>${run.name?`<p>${h(run.titles.join(" / "))}</p>`:""}<p>${h(run.run_id)}</p><div class="run-actions">${file?`<button class="button" data-watch="${h(run.run_id)}/${file}">Open ${file.endsWith("mp4")?"video":"image"}</button><a class="button quiet" href="/media/${h(run.run_id)}/${file}" download="${h(run.run_id)}-${file}">Download</a>`:""}${run.kind==="story"&&run.status==="completed"?`<button class="button" data-import="${h(run.run_id)}">Use these stories</button>`:""}${run.files.includes("story_review.txt")?`<a class="button quiet" href="/media/${h(run.run_id)}/story_review.txt" target="_blank" rel="noopener">Read review</a>`:""}</div></div></article>`;
 }
 function progressBar(job) {
@@ -190,6 +205,7 @@ async function updateLog() {
 }
 function render() {
   if (!draft) return;
+  if(Number(mediaBeat)>shotCount()) mediaBeat="";
   document.querySelectorAll("nav [data-tab]").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.tab===tab)));
   $("view").innerHTML=({workspace,prompts:promptEditor,settings,library,jobs:activity})[tab](); header();
   if(tab==="jobs") updateLog().catch(e=>notice(e.message,true));
@@ -236,8 +252,8 @@ document.addEventListener("input",e=>{
   if(el.dataset.path) {
     let value=el.type==="checkbox"?el.checked:el.value;
     if(el.type==="number") value=el.value===""?null:Number(el.value);
-    if(["render.fps","parallel_saves","speech_parallel_saves","broll.clips_per_save"].includes(el.dataset.path)) value=Number(value);
-    if(["story.candidate_reasoning_effort","story.world_review_reasoning_effort","story.world_review_prompt_version"].includes(el.dataset.path)&&value==="") value=null;
+    if(["render.fps","parallel_saves","speech_parallel_saves","broll.clips_per_save","broll.stills_per_save","broll.duration"].includes(el.dataset.path)) value=Number(value);
+    if(["story.candidate_reasoning_effort","story.world_review_reasoning_effort","story.world_review_prompt_version","story.script_editor_prompt_version"].includes(el.dataset.path)&&value==="") value=null;
     set(el.dataset.path,value);
     const match=el.dataset.path.match(/^games\.(\d+)\.narration$/);
     if(match) $(`words-${match[1]}`).textContent=`${el.value.trim().split(/\s+/).filter(Boolean).length} words`;
@@ -253,14 +269,25 @@ document.addEventListener("change",async e=>{
     if(e.target.id==="story-mode") { storyMode=e.target.value; render(); }
     if(e.target.id==="run-status") { runStatus=e.target.value; render(); }
     if(e.target.id==="run-date") { runDate=e.target.value; render(); }
+    if(["broll.visual_mode","broll.clips_per_save","broll.stills_per_save"].includes(e.target.dataset.path)) {
+      if(Number(mediaBeat)>shotCount()) mediaBeat="";
+      render();
+    }
     if(e.target.dataset.path==="broll.video_model") {
-      if(draft.broll.video_model==="MiniMax-H3-Max") { if(draft.broll.resolution==="2K")set("broll.resolution","768P"); if(draft.broll.duration<5)set("broll.duration",5); }
-      else if(draft.broll.resolution==="480P")set("broll.resolution","768P");
+      const model=videoCapabilities[draft.broll.video_model];
+      set("broll.resolution",model.default_resolution);
+      set("broll.duration",model.default_duration);
+      set("video_version",model.video_template);
+      render();
+    }
+    if(e.target.dataset.path==="broll.resolution") {
+      const durations=videoCapabilities[draft.broll.video_model].durations[draft.broll.resolution];
+      if(!durations.includes(draft.broll.duration)) set("broll.duration",durations[0]);
       render();
     }
     if(e.target.id==="run-kind") { runKind=e.target.value; render(); }
     if(e.target.id==="media-save") mediaSave=e.target.value;
-    if(e.target.id==="media-beat") mediaBeat=e.target.value;
+    if(e.target.id==="media-beat") { mediaBeat=e.target.value; render(); }
     if(e.target.id==="force-media") forceMedia=e.target.checked;
     if(e.target.id==="all-prompts") { allPrompts=e.target.checked; render(); }
     if(e.target.dataset.path==="provider") render();
@@ -318,7 +345,7 @@ async function poll() {
   finally { polling=false; }
 }
 async function init() {
-  const boot=await api("/api/bootstrap"); token=boot.token; drafts=boot.drafts; jobs=boot.jobs; credentials=boot.credentials;
+  const boot=await api("/api/bootstrap"); token=boot.token; drafts=boot.drafts; jobs=boot.jobs; credentials=boot.credentials; videoCapabilities=boot.video_capabilities;
   lastActive=active()?.job_id||null; presets=await api("/api/presets");
   if(drafts.length) await loadDraft(drafts[0].draft_id); else await newDraft();
   setInterval(poll,3000);

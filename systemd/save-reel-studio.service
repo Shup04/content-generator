@@ -1,0 +1,16 @@
+[Unit]
+Description=Save Reel Studio
+
+[Service]
+Type=simple
+WorkingDirectory=%h/repositories/content-generator
+ExecStart=%h/repositories/content-generator/.venv/bin/python -m save_reel studio serve --project-dir %h/repositories/content-generator --port 8765
+Environment=PYTHONUNBUFFERED=1
+Environment="PATH=%h/repositories/content-generator/.venv/bin:%h/.local/bin:/usr/local/bin:/usr/bin:/bin"
+Restart=on-failure
+RestartSec=5
+KillSignal=SIGINT
+TimeoutStopSec=30
+
+[Install]
+WantedBy=default.target

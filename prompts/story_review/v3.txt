@@ -13,7 +13,12 @@ CAUSAL COHERENCE: Independently answer all five causal questions. Verify the aut
 causal_logic, rather than taking it on trust. Setting, resource, threat, protection,
 consequence and cost must describe a functioning system. An unrelated weather hazard
 and unrelated sleep penalty score poorly, however colorful the setting.
-SURVIVAL SPECIFICITY: Are supplies, shelter and a sustainable daily routine concrete?
+SURVIVAL SPECIFICITY: Are supplies, shelter and life here concrete but simple?
+Do not reward extra rules, technical detail or complicated chores. A tired viewer
+should understand the premise and main catch in one short sentence. Lower overall
+and choice_appeal when the concept requires several instructions or an explanation
+of machinery. Impossible game rules are allowed if their effects are consistent;
+causal coherence does not require a real-world engineering explanation.
 VISUAL HOOK: Is there a strong, legible image and a teaser that does not spoil the world?
 CHOICE APPEAL: Is a believable life possible despite a meaningful permanent drawback?
 MYSTERY: Is there a specific unanswered question, not just withheld practical facts?

@@ -93,7 +93,7 @@ def prepare_opener(store: RunStore, settings: "RenderSettings") -> dict:
 
 
 def opener_inputs(settings: "RenderSettings") -> list[str]:
-    duration = settings.intro_seconds + settings.countdown_seconds
+    duration = settings.opener_seconds
     paths = [f"inputs/save_{i:02}/cartridge.png" for i in range(1, 5)]
     paths.extend(["ui/starfield.png", "ui/halo.png"])
     args = []
@@ -111,7 +111,7 @@ def opener_filter(settings: "RenderSettings", captions: list[dict] | None = None
         return max(1, round(n * scale))
 
     pad = max(2, round(style.overscan * scale))
-    enabled = f"gte(t,{settings.intro_seconds})"
+    enabled = f"gte(t,{settings.selection_start})"
     graph = [
         f"[4:v]format=rgba,crop={settings.width}:{settings.height}:"
         f"x='{pad}+sin(t*{style.star_drift_speed})*{style.star_drift * scale}':"
@@ -124,7 +124,7 @@ def opener_filter(settings: "RenderSettings", captions: list[dict] | None = None
     for i, bob in enumerate(settings.bobbing):
         x, y = px(style.column_x[i % 2]), px(style.row_y[i // 2])
         motion = (
-            f"sin((t-{settings.intro_seconds})*{bob.speed}+{bob.phase})*{bob.amplitude * scale}"
+            f"sin((t-{settings.selection_start})*{bob.speed}+{bob.phase})*{bob.amplitude * scale}"
         )
         graph.extend(
             [
@@ -173,7 +173,7 @@ def opener_filter(settings: "RenderSettings", captions: list[dict] | None = None
     text.append(
         draw_text(
             "countdown_caption",
-            px(style.choice_label_size),
+            px(style.hook_heading_size if style.immediate_selection else style.choice_label_size),
             "(w-text_w)/2",
             str(px(style.choice_label_y)),
             font="ui/system.ttf",
@@ -182,13 +182,13 @@ def opener_filter(settings: "RenderSettings", captions: list[dict] | None = None
         )
     )
     for index in range(settings.countdown_seconds):
-        start = settings.intro_seconds + index
+        start = settings.countdown_start + index
         text.append(
             draw_text(
                 f"count_{settings.countdown_seconds - index}",
                 px(style.countdown_size),
                 "(w-text_w)/2",
-                str(px(style.countdown_y)),
+                str(px(style.hook_countdown_y if style.immediate_selection else style.countdown_y)),
                 font="ui/display.ttf",
                 color=style.text_color,
                 enable=f"gte(t,{start})*lt(t,{start + 1})",
@@ -200,7 +200,8 @@ def opener_filter(settings: "RenderSettings", captions: list[dict] | None = None
                 f"opener_caption_{i}",
                 px(style.intro_first_size if i == 0 else style.intro_second_size),
                 "(w-text_w)/2",
-                f"{px(style.intro_center_y)}-text_h/2",
+                f"{px(style.hook_center_y if style.immediate_selection else style.intro_center_y)}"
+                "-text_h/2",
                 font="ui/display.ttf",
                 color=style.text_color,
                 line_spacing=px(style.intro_line_spacing),
@@ -221,21 +222,23 @@ def write_intro_captions(store: RunStore, style: OpenerStyle, captions: list[dic
     }
 
 
-def timed_intro_captions(words: list[dict]) -> list[dict]:
-    expected = [word for phrase in INTRO_CAPTIONS for word in phrase.lower().split()]
+def timed_intro_captions(
+    words: list[dict], phrases: tuple[str, str] = INTRO_CAPTIONS,
+) -> list[dict]:
+    expected = [word for phrase in phrases for word in phrase.lower().split()]
     actual = [reword(w["text"]) for w in words]
     if actual != expected:
         raise ValueError("Console intro narration must match the two configured intro sentences")
-    split = len(INTRO_CAPTIONS[0].split())
+    split = len(phrases[0].split())
     return [
         {
-            "text": INTRO_CAPTIONS[0],
+            "text": phrases[0],
             "start": words[0]["start"],
             "end": words[split - 1]["end"],
             "cue_id": "intro",
         },
         {
-            "text": INTRO_CAPTIONS[1],
+            "text": phrases[1],
             "start": words[split]["start"],
             "end": words[-1]["end"],
             "cue_id": "intro",

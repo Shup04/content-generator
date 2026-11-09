@@ -19,6 +19,7 @@ from save_reel.models import (
     Text,
     utc_now,
 )
+from save_reel.story_editor import ScriptEdit
 from save_reel.story_narration_models import TraveloguePolicy, TravelogueState
 from save_reel.story_tiers import TIERS, SurvivabilityTier
 
@@ -99,8 +100,9 @@ class NoveltyPolicy(Model):
 
 
 class StorySettings(Model):
+    script_editor_prompt_version: str | None = Field(default="v1", pattern=r"^v[1-9][0-9]*$")
     world_review_prompt_version: str | None = Field(default="v4", pattern=r"^v[1-9][0-9]*$")
-    broll_prompt_version: str | None = Field(default="v1", pattern=r"^v[1-9][0-9]*$")
+    broll_prompt_version: str | None = Field(default="v2", pattern=r"^v[1-9][0-9]*$")
     tier_prompt_version: str | None = Field(default="v1", pattern=r"^v[1-9][0-9]*$")
     model: Text = "gpt-6-luna"
     narration_model: Text = "gpt-6.1-sol"
@@ -145,6 +147,7 @@ class StorySettings(Model):
         if stage in (
             "narration_description", "narration_prose_candidates", "narration_prose_candidate",
             "narration_prose_selection",
+            "narration_editor",
         ):
             return self.narration_model
         return self.model
@@ -408,7 +411,7 @@ class EnvironmentVariables(Model):
     environmental_motion: Text
     shot_composition: Text
     key_surfaces: Annotated[tuple[Text, ...], Field(min_length=1)]
-    broll_beats: Annotated[tuple[BrollBeat, ...], Field(min_length=2, max_length=2)] | None = None
+    broll_beats: Annotated[tuple[BrollBeat, ...], Field(min_length=2, max_length=4)] | None = None
 
     @model_validator(mode="after")
     def distinct_broll_beats(self):
@@ -566,8 +569,9 @@ class NarrationStats(Model):
     within_target: bool
 
     @classmethod
-    def measure(cls, lines: tuple[str, ...], policy: NarrationPolicy):
-        policy.check(lines)
+    def measure(cls, lines: tuple[str, ...], policy: NarrationPolicy, *, validate=True):
+        if validate:
+            policy.check(lines)
         count = word_count(lines)
         return cls(
             words=count,
@@ -626,6 +630,7 @@ class StorySave(Model):
     # A narration-only rewrite may use a different provider from the original world.
     narration_provider: Text | None = None
     narration_model: Text | None = None
+    script_edit: ScriptEdit | None = None
 
     def spoken_policy(self, settings):
         return self.travelogue.policy if self.travelogue else settings.narration
@@ -668,6 +673,7 @@ class StoryRun(Model):
             value["settings"].setdefault("broll_prompt_version", None)
             value["settings"].setdefault("world_review_prompt_version", None)
             value["settings"].setdefault("world_review_reasoning_effort", None)
+            value["settings"].setdefault("script_editor_prompt_version", None)
             if "travelogue" not in value["settings"]:
                 value = {**value, "settings": {**value["settings"], "travelogue": None}}
         return value
@@ -704,6 +710,8 @@ class StoryRun(Model):
                 from save_reel.story_simulation import validate_slot
 
                 validate_slot(self, slot)
+            elif slot.script_edit is not None:
+                raise ValueError("Script edits require the v3 world and narration pipeline")
             if slot.candidates:
                 candidates = slot.candidates.candidates
                 expected = {
@@ -753,7 +761,8 @@ class StoryRun(Model):
                     raise ValueError("final brief must preserve the survivability tier")
                 if not slot.selected or slot.final.brief.title != slot.selected.title:
                     raise ValueError("final title must match the selected concept")
-                slot.spoken_policy(self.settings).check(slot.final.brief.narration)
+                if slot.script_edit is None:
+                    slot.spoken_policy(self.settings).check(slot.final.brief.narration)
                 for field, value in (
                     ("main_threat", slot.selected.primary_danger),
                     ("critical_rule", slot.selected.critical_rule),
@@ -799,7 +808,8 @@ class StoryRun(Model):
                         raise ValueError("completed stories must meet critic thresholds")
             for slot in self.saves:
                 expected_stats = NarrationStats.measure(
-                    slot.final.brief.narration, slot.spoken_policy(self.settings)
+                    slot.final.brief.narration, slot.spoken_policy(self.settings),
+                    validate=slot.script_edit is None,
                 )
                 if slot.narration_stats != expected_stats:
                     raise ValueError("cached narration statistics do not match the spoken text")

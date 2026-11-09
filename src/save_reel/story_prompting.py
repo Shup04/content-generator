@@ -24,6 +24,7 @@ class StoryPromptCompiler(PromptCompiler):
         if stage not in (
             *STORY_STAGES, *SIMULATION_STAGES, *TRAVELOGUE_STAGES, *PROSE_STAGES, *PLAIN_STAGES,
             "narration_examples", "rules", "tiers", "broll_beats",
+            "narration_editor", "broll_expansion",
         ):
             raise ValueError("unknown story prompt stage")
         self.template_name = f"story_{stage}"
@@ -85,6 +86,14 @@ def load_travelogue_prompts(version="v1", prompts_dir=None) -> dict[str, Compile
         for stage in (PLAIN_STAGES if version == "v3"
                       else PROSE_STAGES if version == "v2" else TRAVELOGUE_STAGES)
     }
+
+
+def load_editor_prompt(version, prompts_dir=None) -> dict[str, CompiledPrompt]:
+    if version is None:
+        return {}
+    return {"narration_editor": StoryPromptCompiler(
+        "narration_editor", version, prompts_dir=prompts_dir,
+    ).render({"CONTEXT": "[CONTEXT]", "FEEDBACK": "[FEEDBACK]"})}
 
 
 def render_request(prompt: CompiledPrompt, context: dict, feedback: str = "") -> str:

@@ -99,7 +99,7 @@ def test_full_rewrites_mock_before_media_and_voice(store, story, monkeypatch):
     monkeypatch.setattr("save_reel.story_cli._provider", lambda *a: writer)
 
     def media(self, kind):
-        assert len(writer.calls) == 20
+        assert len(writer.calls) == 24  # Description, three drafts, selection, editor per save.
         assert all(not g.needs_script for g in self.draft.games)
         events.append(kind)
 
@@ -143,7 +143,7 @@ def test_automatic_rewrite_keeps_manual_script_and_stops_on_writer_failure(
     job = prepare_job(store, draft, "narrate")
     job.scripts()
     assert job.draft.games[0].narration == draft.games[0].narration
-    assert len(writer.calls) == 15  # Only three saves needed a writer.
+    assert len(writer.calls) == 18  # Only three saves needed a writer and editor.
     writer.calls.clear()
     job.scripts()
     assert not writer.calls
@@ -181,7 +181,7 @@ def test_partial_rewrite_resume_preserves_three_scripts_and_finished_requests(st
     writer.calls.clear()
     run = workflow.rewrite_narration(store.run_dir(story.run_id), **arguments)
     assert run.saves[1:] == story.saves[1:]
-    assert len(writer.calls) == 4  # Description was already saved.
+    assert len(writer.calls) == 5  # Description was already saved; editor follows selection.
     assert all(c["stage"].startswith("narration") for c in writer.calls)
     writer.calls.clear()
     workflow.rewrite_narration(store.run_dir(story.run_id), **arguments)

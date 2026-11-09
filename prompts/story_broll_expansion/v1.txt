@@ -1,0 +1,17 @@
+Plan additional views of this existing world. Return exactly additional_view_count
+beats, each with type detail, description, shot_composition and camera_motion.
+Do not rewrite the existing views, narration or approved world.
+
+Use only locations, objects, routes and physical features supported by the supplied
+world and environment. Choose distinct subjects or areas that have not already been
+shown. A different crop of an existing view is not enough. Keep the same time,
+palette, materials and game era. Do not invent lore or clues to make a shot exciting.
+Describe what is visible in each new frame using simple, concrete language.
+Use restrained lateral camera motion if the view is animated.
+
+Show unoccupied environments and objects only. No people, faces, bodies, hands,
+crowds, human silhouettes, humanoid characters, or people in reflections or shadows.
+Inhabitants mentioned in the story must remain outside every frame.
+
+[CONTEXT]
+[FEEDBACK]

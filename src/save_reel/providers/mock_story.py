@@ -28,6 +28,21 @@ class MockStoryProvider:
         self.model = f"mock-survival-{version}"
 
     def generate(self, *, stage, prompt, context, response_type):
+        if stage == "broll_expansion":
+            views = (
+                ("Unoccupied passage at the edge of the supplied setting.",
+                 "Low angle along the floor toward the far boundary."),
+                ("Surface of the existing structure with nobody in view.",
+                 "Side-on close framing of the material and its edge."),
+                ("Empty space around the approved central object.",
+                 "Elevated diagonal across the surrounding ground."),
+            )
+            return response_type(beats=tuple(BrollBeat(
+                type="detail", description=description, shot_composition=composition,
+                camera_motion="Slow lateral drift.",
+            ) for description, composition in views[:context["additional_view_count"]]))
+        if stage == "narration_editor":
+            return response_type(paragraph=context["final_narration"])
         if stage in (
             "narration_description", "narration_prose_candidates", "narration_prose_candidate",
             "narration_prose_selection",
@@ -48,7 +63,10 @@ class MockStoryProvider:
         ):
             from save_reel.providers.mock_simulation import generate_simulation_fixture
 
-            return generate_simulation_fixture(stage, context, response_type)
+            fixture_context = {**context, "settings": {"broll_prompt_version": (
+                "v2" if "FOUR DISTINCT VIEWS" in prompt else "v1"
+            )}}
+            return generate_simulation_fixture(stage, fixture_context, response_type)
         fixtures = json.loads(
             files("save_reel.prompt_templates")
             .joinpath("story_fixtures", "v2.json")
@@ -164,4 +182,15 @@ class MockStoryProvider:
             result = NarrationDraft(narration=tuple(lines))
         else:
             raise ValueError("unknown mock stage")
+        if stage == "brief" and context.get("settings", {}).get("broll_prompt_version") == "v2":
+            result.environment.broll_beats += (
+                BrollBeat(type="detail", description=c.safe_sleeping,
+                          shot_composition="Low view across the empty resting area, "
+                          "framed by its immediate shelter surfaces.",
+                          camera_motion="Slow sideways slide beside the shelter."),
+                BrollBeat(type="detail", description=c.resource_situation,
+                          shot_composition="Downward angle onto the resource area, "
+                          "with no characters in view and the horizon excluded.",
+                          camera_motion="Gentle sideways movement over the resource area."),
+            )
         return response_type.model_validate(result.model_dump())

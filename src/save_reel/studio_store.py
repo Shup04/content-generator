@@ -1,5 +1,6 @@
 """Local drafts, validated template snapshots, and read-only run discovery."""
 
+import hashlib
 import json
 import re
 import tempfile
@@ -11,7 +12,7 @@ from uuid import uuid4
 from pydantic import TypeAdapter
 
 from save_reel.broll_beats import StudioBrollBeat
-from save_reel.models import RunId, utc_now
+from save_reel.models import Artifact, RunId, utc_now
 from save_reel.narration_models import NarrationRun
 from save_reel.prompting import (
     BrollStillPromptCompiler,
@@ -21,7 +22,12 @@ from save_reel.prompting import (
 from save_reel.storage import RunStore
 from save_reel.story_export import visual_values
 from save_reel.story_pipeline import StoryWorkflow
-from save_reel.story_prompting import load_prompts, load_travelogue_prompts
+from save_reel.story_prompting import (
+    StoryPromptCompiler,
+    load_editor_prompt,
+    load_prompts,
+    load_travelogue_prompts,
+)
 from save_reel.story_tiers import TIERS
 from save_reel.studio_models import NarrationOrigin, StudioDraft, StudioGame, narration_digest
 
@@ -33,7 +39,8 @@ MEDIA_FILES = {
     "preview.png",
     "story_review.txt",
     "subtitles.srt",
-    "broll_01_still.png", "broll_02_still.png", "broll_01.mp4", "broll_02.mp4",
+    *(f"broll_{i:02}{suffix}" for i in range(1, 5)
+      for suffix in ("_still.png", ".mp4")),
 }
 
 # Presets contain reusable production choices, never reel content or generated assets.
@@ -50,6 +57,28 @@ PRESET_FIELDS = {
     "still_version",
     "video_version",
 }
+
+
+def _file_signature(path: Path) -> tuple[int, ...]:
+    stat = path.stat()
+    return stat.st_dev, stat.st_ino, stat.st_size, stat.st_mtime_ns, stat.st_ctime_ns
+
+
+@lru_cache(maxsize=1024)
+def _matches_checksum(path: Path, expected: str, signature: tuple[int, ...]) -> bool:
+    # Reuse successful reads only while this exact file version remains unchanged.
+    # Stream large MP4s instead of loading them into memory during library discovery.
+    with path.open("rb") as stream:
+        actual = hashlib.file_digest(stream, "sha256").hexdigest()
+    return actual == expected and _file_signature(path) == signature
+
+
+def _intact_artifact(folder: Path, artifact: Artifact) -> bool:
+    path = (folder / artifact.path).resolve()
+    if not path.is_relative_to(folder.resolve()) or not path.is_file():
+        return False
+    signature = _file_signature(path)
+    return signature[2] > 0 and _matches_checksum(path, artifact.sha256, signature)
 
 
 def is_finished_reel(folder: Path) -> bool:
@@ -73,14 +102,14 @@ def is_finished_reel(folder: Path) -> bool:
                 c.stage.status == "completed"
                 and c.audio
                 and c.metadata
-                and (folder / c.audio.path).is_file()
-                and (folder / c.metadata.path).is_file()
+                and _intact_artifact(folder, c.audio)
+                and _intact_artifact(folder, c.metadata)
                 for c in run.cues
             )
             and artifact
             and artifact.path == "reel.mp4"
             and (folder / artifact.path).resolve().parent == folder.resolve()
-            and (folder / artifact.path).stat().st_size > 0
+            and _intact_artifact(folder, artifact)
         )
     except (ValueError, OSError):
         return False
@@ -135,6 +164,11 @@ def validate_prompts(draft: StudioDraft, root: Path) -> None:
                  draft.story.broll_prompt_version, draft.story.world_review_prompt_version)
     if draft.story.prompt_version == "v3" and draft.story.travelogue:
         load_travelogue_prompts(draft.story.travelogue.prompt_version, root)
+    if draft.story.prompt_version == "v3":
+        load_editor_prompt(draft.story.script_editor_prompt_version, root)
+    StoryPromptCompiler("broll_expansion", "v1", prompts_dir=root).render(
+        {"CONTEXT": "preview", "FEEDBACK": ""}
+    )
     # Validate visual placeholders even before a draft has worlds.
     placeholders = {
         "TITLE",
@@ -161,9 +195,15 @@ def validate_prompts(draft: StudioDraft, root: Path) -> None:
     ):
         compiler(version, prompts_dir=root).render(dict.fromkeys(placeholders, "preview"))
     for game in draft.games:
-        for beat in game.clip_numbers():
-            if len(compile_game(draft, game, root, beat)["video"].text) > 7000:
-                raise ValueError(f"{game.title}: compiled video prompt exceeds 7000 characters")
+        for beat in game.clip_numbers(draft.broll.shots_per_save):
+            if draft.broll.media_kind(beat) == "still":
+                continue
+            compiled = compile_game(draft, game, root, beat)["video"].text
+            if len(compiled) > draft.broll.video_prompt_limit:
+                raise ValueError(
+                    f"{game.title}: compiled video prompt exceeds "
+                    f"{draft.broll.video_prompt_limit} characters; try video template v3"
+                )
 
 
 @lru_cache(maxsize=512)

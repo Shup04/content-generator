@@ -15,6 +15,16 @@ class RenderGame(Model):
     values_file: Text
     cartridge_run_id: RunId
     broll_run_ids: Annotated[tuple[RunId, ...], Field(min_length=1)]
+    broll_kinds: tuple[Literal["video", "still"], ...] = ()
+
+    @model_validator(mode="after")
+    def matching_media_kinds(self):
+        if self.broll_kinds and len(self.broll_kinds) != len(self.broll_run_ids):
+            raise ValueError("Provide one media kind for every B-roll run")
+        return self
+
+    def clip_kind(self, number: int) -> Literal["video", "still"]:
+        return self.broll_kinds[number - 1] if self.broll_kinds else "video"
 
 
 class RenderCollection(Model):
@@ -72,6 +82,18 @@ class RenderSettings(Model):
                 raise ValueError("Durations must correspond to a whole number of output frames")
         return self
 
+    @property
+    def selection_start(self) -> float:
+        return 0 if self.opener.immediate_selection else self.intro_seconds
+
+    @property
+    def countdown_start(self) -> float:
+        return self.intro_seconds if self.opener.countdown_after_intro else self.selection_start
+
+    @property
+    def opener_seconds(self) -> float:
+        return max(self.intro_seconds, self.countdown_start + self.countdown_seconds)
+
 
 class TimelineSegment(Model):
     kind: Literal["intro", "countdown", "save_intro", "broll"]
@@ -90,10 +112,10 @@ def build_timeline(
     timeline = [
         TimelineSegment(kind="intro", start=0, duration=settings.intro_seconds),
         TimelineSegment(
-            kind="countdown", start=settings.intro_seconds, duration=settings.countdown_seconds
+            kind="countdown", start=settings.countdown_start, duration=settings.countdown_seconds
         ),
     ]
-    start = settings.intro_seconds + settings.countdown_seconds
+    start = settings.opener_seconds
     for save_number, game in enumerate(collection.games, 1):
         if settings.polish.enabled:
             duration = round(settings.polish.title_seconds * settings.fps) / settings.fps
